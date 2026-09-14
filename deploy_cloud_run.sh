@@ -20,8 +20,8 @@ echo "Service Name: ${SERVICE_NAME}"
 echo "Access:       @google.com Exclusive Identity Enforcement"
 echo "============================================================"
 
-# 1. Sync latest Nubank CSPR scripts before build
-echo "[1/4] Syncing latest CSPR scripts from Google/CSPR..."
+# 1. Sync latest Upstream CSPR scripts before build
+echo "[1/4] Syncing latest CSPR scripts from Upstream CSPR Engine..."
 if [ -d "/Users/jsaccomani/Documents/Jetsky/Google/CSPR/scripts" ]; then
   mkdir -p ./scripts
   cp -f /Users/jsaccomani/Documents/Jetsky/Google/CSPR/scripts/*.sh ./scripts/ || true

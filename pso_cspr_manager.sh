@@ -33,7 +33,7 @@ ACTIVE_GCLOUD_PROJ=$(gcloud config get-value project 2>/dev/null || true)
 if [[ -n "${ACTIVE_GCLOUD_PROJ}" && "${ACTIVE_GCLOUD_PROJ}" != "(unset)" ]]; then
     DEFAULT_PROJECT="${DEFAULT_PROJECT:-${ACTIVE_GCLOUD_PROJ}}"
 fi
-DEFAULT_PROJECT="${DEFAULT_PROJECT:-nu-cspr-assessment}"
+DEFAULT_PROJECT="${DEFAULT_PROJECT:-target-gcp-project}"
 DEFAULT_ORG="${DEFAULT_ORG:-802070535070}"
 
 export BQ_PROJECT_ID="${BQ_PROJECT_ID:-${DEFAULT_PROJECT}}"

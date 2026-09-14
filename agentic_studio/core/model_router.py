@@ -146,6 +146,6 @@ class ModelRouter:
             )
         return (
             "### CSPR Copilot & Studio (Gemini 3.x Engine)\n"
-            "- Pipeline pronto para validar Fases 01 a 04.\n"
-            "- Cole qualquer log de erro real do cliente (ex: Nubank) para diagnóstico imediato com recomendação de comando `gcloud`."
+            "- Pipeline pronto para validar Fases 01 a 05.\n"
+            "- Cole qualquer log de erro real do ambiente GCP do cliente para diagnóstico imediato com recomendação de comando `gcloud`."
         )

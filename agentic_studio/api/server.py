@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -10,12 +10,13 @@ from pydantic import BaseModel
 
 from agentic_studio.core.auth import get_verified_google_user
 from agentic_studio.core.cspr_engine import CSPREngine
+from agentic_studio.core.customer_store import CustomerStore
 from agentic_studio.core.model_router import ModelRouter
 
 app = FastAPI(
     title="CSPR Copilot & Agentic Studio",
-    version="3.1.0",
-    description="AI-assisted Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
+    version="3.2.0",
+    description="Customer-Agnostic AI Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
 )
 
 app.add_middleware(
@@ -27,6 +28,7 @@ app.add_middleware(
 
 model_router = ModelRouter()
 cspr_engine = CSPREngine()
+customer_store = CustomerStore()
 UI_HTML_PATH = Path(__file__).resolve().parents[1] / "ui" / "index.html"
 
 
@@ -34,8 +36,28 @@ class ModelSelectRequest(BaseModel):
     model_id: str
 
 
+class CreateCustomerRequest(BaseModel):
+    name: str
+    gcp_project_id: Optional[str] = ""
+    org_id: Optional[str] = ""
+    description: Optional[str] = ""
+
+
+class AddLibraryItemRequest(BaseModel):
+    title: str
+    item_type: Optional[str] = "document"
+    summary: str
+
+
+class CreateConversationRequest(BaseModel):
+    customer_id: str
+    title: Optional[str] = "Nova conversa"
+
+
 class CopilotChatRequest(BaseModel):
     message: str
+    customer_id: str
+    conversation_id: Optional[str] = None
     preferred_model: Optional[str] = None
     phase_context: Optional[str] = None
 
@@ -74,14 +96,84 @@ def get_current_user_identity(
 def get_platform_status(
     user: Dict[str, Any] = Depends(get_verified_google_user),
 ) -> Dict[str, Any]:
-    """Returns full Studio status including Gemini 3.x router and CSPR phases sync status."""
+    """Returns full Studio status including Gemini 3.x router, Customer workspaces, and CSPR phases."""
+    customers = customer_store.list_customers()
     return {
         "platform": "CSPR Copilot & Agentic Studio",
-        "version": "3.1.0",
+        "version": "3.2.0",
         "authenticated_user": user,
         "model_router": model_router.get_status(),
         "phases": cspr_engine.get_phases_status(),
+        "customers": customers,
+        "conversations": customer_store.list_conversations(),
     }
+
+
+@app.get("/api/v1/customers")
+def list_customers(
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> List[Dict[str, Any]]:
+    """Lists all isolated Customer Workspaces."""
+    return customer_store.list_customers()
+
+
+@app.post("/api/v1/customers")
+def create_customer(
+    req: CreateCustomerRequest,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Creates a strictly isolated Customer Workspace & Library."""
+    if not req.name.strip():
+        raise HTTPException(status_code=400, detail="O nome do Customer é obrigatório.")
+    return customer_store.create_customer(
+        name=req.name,
+        gcp_project_id=req.gcp_project_id or "",
+        org_id=req.org_id or "",
+        description=req.description or "",
+    )
+
+
+@app.post("/api/v1/customers/{customer_id}/library")
+def add_customer_library_item(
+    customer_id: str,
+    req: AddLibraryItemRequest,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Adds an isolated file/script/log item to a specific Customer's library."""
+    try:
+        item = customer_store.add_library_item(
+            customer_id=customer_id,
+            title=req.title,
+            item_type=req.item_type or "document",
+            content_or_summary=req.summary,
+        )
+        return {"status": "ok", "item": item, "customer": customer_store.get_customer(customer_id)}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/conversations")
+def list_conversations(
+    customer_id: Optional[str] = None,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> List[Dict[str, Any]]:
+    """Lists conversations, optionally filtered by isolated Customer ID."""
+    return customer_store.list_conversations(customer_id=customer_id)
+
+
+@app.post("/api/v1/conversations")
+def create_conversation(
+    req: CreateConversationRequest,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Creates a new conversation strictly bound to a Customer Workspace."""
+    try:
+        return customer_store.create_conversation(
+            customer_id=req.customer_id,
+            title=req.title or "Nova conversa",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/models/select")
@@ -95,12 +187,12 @@ def set_active_model(
     return model_router.set_primary_model(req.model_id)
 
 
-@app.post("/api/v1/sync-from-nubank")
-def sync_scripts_from_nubank(
+@app.post("/api/v1/sync-upstream")
+def sync_scripts_from_upstream(
     user: Dict[str, Any] = Depends(get_verified_google_user),
 ) -> Dict[str, Any]:
-    """Synchronizes the 6 CSPR bash scripts from Google/CSPR (Nubank base) into cspr_copilot."""
-    result = cspr_engine.sync_from_nubank()
+    """Synchronizes the 6 CSPR bash scripts from Upstream CSPR Engine into cspr_copilot."""
+    result = cspr_engine.sync_from_upstream()
     return {
         "sync_result": result,
         "phases": cspr_engine.get_phases_status(),
@@ -121,14 +213,39 @@ def copilot_chat(
     req: CopilotChatRequest,
     user: Dict[str, Any] = Depends(get_verified_google_user),
 ) -> Dict[str, Any]:
-    """Analyzes CSPR logs, GCP IAM/Org Policy errors, and recommends gcloud remediations."""
+    """Executes AI chat strictly isolated within the active Customer Workspace & Conversation."""
+    customer = customer_store.get_customer(req.customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail=f"Customer workspace {req.customer_id} not found.")
+
+    conv = None
+    if req.conversation_id:
+        conv = customer_store.get_conversation(req.conversation_id)
+    if not conv or conv.get("customer_id") != req.customer_id:
+        conv = customer_store.create_conversation(customer_id=req.customer_id, title=req.message[:48])
+
+    customer_store.append_message(
+        conversation_id=conv["conversation_id"],
+        role="user",
+        content=req.message,
+        model_used=req.preferred_model or model_router.primary_model,
+    )
+
+    library_context = "\n".join(
+        f"- [{item['type'].upper()}] {item['title']}: {item['summary']}"
+        for item in customer.get("library", [])
+    ) or "Nenhum arquivo extra anexado à biblioteca deste Customer ainda."
+
     system_instruction = (
         f"You are CSPR Copilot, assisting Google Cloud Security Architect {user['email']} (@google.com). "
+        f"CRITICAL ISOLATION RULE: You are operating strictly inside Customer Workspace '{customer['name']}' "
+        f"(GCP Project: {customer['gcp_project_id']}, Org ID: {customer['org_id']}). "
+        "NEVER mix or reference data from any other customer.\n"
+        f"Customer Isolated Library Context:\n{library_context}\n\n"
         "You specialize in Google Cloud Security Posture Review (CSPR) field execution across all 6 phases "
         "(01_setup_cspr_prereqs.sh, 01.1_cloudshell_push_image.sh, 02_push_scanner_image.sh, "
         "03_deploy_and_run_job.sh, 04_validate_bigquery.sh, 05_generate_findings.sh). "
-        "When given real-world customer errors (such as Nubank GCP Org Policies, VPC-SC, Cloud Run Job OOM/timeouts, "
-        "or BigQuery __TABLES__ verification issues), provide exact root-cause diagnosis and ready-to-run gcloud commands."
+        "Provide exact root-cause diagnosis and ready-to-run gcloud commands."
     )
     full_prompt = req.message
     if req.phase_context:
@@ -139,4 +256,16 @@ def copilot_chat(
         system_instruction=system_instruction,
         preferred_model=req.preferred_model,
     )
-    return result
+
+    updated_conv = customer_store.append_message(
+        conversation_id=conv["conversation_id"],
+        role="assistant",
+        content=result["response"],
+        model_used=result["model_used"],
+    )
+
+    return {
+        **result,
+        "conversation": updated_conv,
+        "customer": customer,
+    }

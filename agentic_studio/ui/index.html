@@ -3,145 +3,376 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CSPR Copilot & Agentic Studio (Gemini 3.x | @google.com)</title>
+  <title>CSPR Copilot • Google Cloud Security</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    body {
-      background: radial-gradient(circle at top right, #0f172a, #020617 70%);
-      color: #f8fafc;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    :root {
+      --gcp-blue: #4285F4;
+      --gcp-red: #EA4335;
+      --gcp-yellow: #FBBC05;
+      --gcp-green: #34A853;
     }
-    .glass {
-      background: rgba(15, 23, 42, 0.78);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(148, 163, 184, 0.16);
+    body {
+      background-color: #0b0d12;
+      color: #e3e3e3;
+      font-family: 'Google Sans', 'Inter', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    /* Inspiring Google Cloud 4-Color Radial Atmospheric Fade into Obsidian Black */
+    .gcp-canvas-glow {
+      background:
+        radial-gradient(circle at 50% 44%,
+          rgba(66, 133, 244, 0.20) 0%,
+          rgba(52, 168, 83, 0.11) 24%,
+          rgba(251, 188, 5, 0.06) 42%,
+          rgba(234, 67, 53, 0.05) 56%,
+          rgba(11, 13, 18, 0.98) 76%
+        ),
+        #0b0d12;
+    }
+    .sidebar-surface {
+      background-color: #13151b;
+      border-right: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .pill-prompt {
+      background: rgba(28, 31, 40, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.65), 0 0 28px rgba(66, 133, 244, 0.12);
+      backdrop-filter: blur(16px);
+    }
+    .pill-prompt:focus-within {
+      border-color: rgba(66, 133, 244, 0.55);
+      box-shadow: 0 14px 44px -10px rgba(0, 0, 0, 0.75), 0 0 36px rgba(66, 133, 244, 0.25);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
     }
   </style>
 </head>
-<body class="min-h-screen p-6">
-  <!-- @google.com Zero-Trust Login Modal (shown only if IAP header or Bearer token not yet present) -->
-  <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md">
-    <div class="glass rounded-2xl p-8 max-w-md w-full text-center space-y-5 border border-sky-500/30 shadow-2xl">
-      <div class="mx-auto w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-2xl">
-        🔒
-      </div>
-      <h2 class="text-xl font-bold text-slate-100">Acesso Exclusivo Rede Google</h2>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        Esta instância Cloud Run do <strong class="text-sky-300">CSPR Copilot & Studio</strong> é restrita a colaboradores autenticados com identidade corporativa <code class="text-emerald-300">@google.com</code>.
-      </p>
+<body class="h-screen w-screen flex select-none">
 
-      <!-- Google Identity Services Sign-In Button container -->
-      <div id="g_id_onload"
-           data-auto_prompt="false">
+  <!-- @google.com Zero-Trust Login Gate Modal -->
+  <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md">
+    <div class="bg-[#181b23] rounded-3xl p-8 max-w-md w-full text-center space-y-5 border border-white/10 shadow-2xl">
+      <div class="mx-auto w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
+        <!-- Google Cloud Icon -->
+        <svg class="w-8 h-8" viewBox="0 0 24 24">
+          <path fill="#EA4335" d="M12 5.6c1.8 0 3.4.7 4.6 1.8l3.4-3.4C17.9 2.1 15.1 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.9 3c.9-2.8 3.5-4.8 6.5-4.8z"/>
+          <path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.6-.2-2.4H12v4.6h5.9c-.3 1.4-1.1 2.6-2.3 3.4l3.7 2.9c2.2-2 3.2-5 3.2-8.5z"/>
+          <path fill="#FBBC05" d="M5.5 14.4c-.2-.7-.4-1.5-.4-2.4s.2-1.7.4-2.4l-3.9-3C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.4l3.9-3z"/>
+          <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.6-2-6.5-4.8l-3.9 3C3.5 20.4 7.4 23 12 23z"/>
+        </svg>
       </div>
-      <div class="flex justify-center">
+      <h2 class="text-xl font-bold text-white">CSPR Copilot • Google Cloud</h2>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Acesso exclusivo à rede Google. Autentique-se com sua conta corporativa <code class="text-blue-400 font-mono">@google.com</code>.
+      </p>
+      <div class="flex justify-center pt-2">
         <div id="googleSignInButton"></div>
       </div>
-
-      <p id="authErrorMsg" class="text-xs text-rose-400 font-medium hidden"></p>
     </div>
   </div>
 
-  <div class="max-w-7xl mx-auto space-y-6">
-    <!-- Top Header -->
-    <header class="glass rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <div class="flex flex-wrap items-center gap-2.5">
-          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            GEMINI 3.x MULTI-MODEL
-          </span>
-          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
-            🔒 REDE GOOGLE (@google.com)
-          </span>
-          <span id="userIdentityBadge" class="px-2.5 py-1 text-xs font-mono rounded-full bg-slate-800 text-slate-200 border border-slate-700">
-            Verificando @google.com...
-          </span>
+  <!-- Modal: Create New Isolated Customer -->
+  <div id="newCustomerModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm">
+    <div class="bg-[#181b23] rounded-2xl p-6 max-w-md w-full space-y-4 border border-white/10 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-white">Novo Customer (Workspace Isolado)</h3>
+        <button onclick="closeCustomerModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+      <p class="text-xs text-slate-400">
+        Cada Customer possui sua própria biblioteca de arquivos, logs e histórico de conversas 100% separados.
+      </p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-300 block mb-1">Nome do Customer / Workspace *</label>
+          <input id="custNameInput" type="text" placeholder="Ex: Enterprise Assessment #02"
+            class="w-full rounded-xl bg-[#0e1015] border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
         </div>
-        <h1 class="text-2xl font-bold mt-2 tracking-tight">CSPR Copilot & Agentic Studio</h1>
-        <p class="text-sm text-slate-400">
-          Plataforma Agentic de Cloud Security Posture Review sincronizada com os scripts reais de campo (<code class="text-sky-300">Google/CSPR</code>).
-        </p>
+        <div>
+          <label class="text-xs text-slate-300 block mb-1">GCP Project ID Alvo</label>
+          <input id="custProjectInput" type="text" placeholder="Ex: gcp-posture-target-02"
+            class="w-full rounded-xl bg-[#0e1015] border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+        </div>
+        <div>
+          <label class="text-xs text-slate-300 block mb-1">GCP Organization ID</label>
+          <input id="custOrgInput" type="text" placeholder="Ex: 123456789012"
+            class="w-full rounded-xl bg-[#0e1015] border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"/>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeCustomerModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300">Cancelar</button>
+        <button onclick="createNewCustomer()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white">Criar Customer Isolado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Isolated Customer Library -->
+  <div id="libraryModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm">
+    <div class="bg-[#181b23] rounded-2xl p-6 max-w-xl w-full space-y-4 border border-white/10 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 id="libraryModalTitle" class="text-base font-semibold text-white">Biblioteca Isolada do Customer</h3>
+          <p class="text-xs text-slate-400">Os arquivos e anotações abaixo pertencem exclusivamente a este Customer.</p>
+        </div>
+        <button onclick="closeLibraryModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
       </div>
 
-      <!-- Model Selector & Sync Button -->
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2 bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2">
-          <label for="modelSelect" class="text-xs text-slate-400 font-medium">Modelo Gemini:</label>
-          <select id="modelSelect" onchange="switchModel(this.value)" class="bg-transparent text-sm font-semibold text-emerald-300 focus:outline-none">
-            <option value="gemini-3.8-flash">gemini-3.8-flash (GA Principal)</option>
-            <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Raciocínio Profundo)</option>
-            <option value="gemini-3.7-flash">gemini-3.7-flash (GA Estável)</option>
-            <option value="gemini-3.5-flash">gemini-3.5-flash (Fallback)</option>
+      <div id="libraryItemsList" class="space-y-2 max-h-56 overflow-y-auto custom-scroll pr-1"></div>
+
+      <div class="pt-3 border-t border-white/10 space-y-2">
+        <div class="text-xs font-medium text-slate-300">Adicionar Item à Biblioteca deste Customer</div>
+        <div class="grid grid-cols-3 gap-2">
+          <input id="libItemTitle" type="text" placeholder="Nome (ex: org_policy_error.log)"
+            class="col-span-2 rounded-xl bg-[#0e1015] border border-white/10 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"/>
+          <select id="libItemType" class="rounded-xl bg-[#0e1015] border border-white/10 px-2 py-1.5 text-xs text-slate-300">
+            <option value="log">Log GCP</option>
+            <option value="script">Script</option>
+            <option value="posture">Nota CSPR</option>
           </select>
         </div>
+        <textarea id="libItemSummary" rows="2" placeholder="Cole o trecho relevante do log ou descrição técnica..."
+          class="w-full rounded-xl bg-[#0e1015] border border-white/10 p-2.5 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+        <div class="flex justify-end">
+          <button onclick="addLibraryItemToCustomer()" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white">
+            + Anexar à Biblioteca do Customer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <button onclick="syncFromNubank()" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-semibold transition shadow-lg shadow-sky-600/30">
-          Sincronizar com Nubank (Google/CSPR)
+  <!-- ==================== LEFT SIDEBAR ==================== -->
+  <aside id="leftSidebar" class="sidebar-surface w-72 h-full flex flex-col justify-between transition-all duration-200 shrink-0">
+    <!-- Top Section -->
+    <div class="p-4 space-y-5 overflow-y-auto custom-scroll flex-1">
+      <!-- Brand Header: Google Cloud Logo + CSPR Copilot -->
+      <div class="flex items-center justify-between px-2 pt-1">
+        <div class="flex items-center gap-2.5">
+          <!-- Official 4-color Google Cloud Symbol -->
+          <svg class="w-6 h-6 shrink-0" viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M15.6 8.3l1.9-1.9c-1.5-1.4-3.4-2.3-5.5-2.3-3.9 0-7.2 2.7-8.1 6.3l2.4.7c.7-2.5 3-4.3 5.7-4.3 1.4 0 2.6.5 3.6 1.5z"/>
+            <path fill="#4285F4" d="M20.9 11.9c0-.5-.1-1-.2-1.5H12v3h5c-.2 1.1-.8 2.1-1.7 2.7l2.1 1.6c1.5-1.4 2.5-3.4 2.5-5.8z"/>
+            <path fill="#FBBC05" d="M6.3 14.3c-.2-.5-.3-1.1-.3-1.7s.1-1.2.3-1.7l-2.4-.7C3.6 11 3.4 11.8 3.4 12.6s.2 1.6.5 2.4l2.4-.7z"/>
+            <path fill="#34A853" d="M12 20c2.3 0 4.3-.8 5.8-2.1l-2.1-1.6c-.9.6-2.1 1-3.7 1-2.7 0-5-1.8-5.7-4.3l-2.4.7C4.8 17.3 8.1 20 12 20z"/>
+          </svg>
+          <span class="text-base font-semibold tracking-tight text-white">CSPR Copilot</span>
+        </div>
+        <button onclick="toggleSidebar()" title="Recolher menu" class="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"/>
+          </svg>
         </button>
       </div>
-    </header>
 
-    <!-- Main Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Left Column: 6 CSPR Phases -->
-      <section class="lg:col-span-7 space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Pipeline CSPR (Scripts Reais de Execução)</h2>
-          <span id="syncNotice" class="text-xs text-slate-400">Verificando status...</span>
+      <!-- Primary Actions: Nova conversa + Pesquisar conversas -->
+      <div class="space-y-1">
+        <button onclick="startNewConversation()"
+          class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full bg-[#1e222d] hover:bg-[#262b38] text-sm font-medium text-white transition shadow-sm">
+          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          <span>Nova conversa</span>
+        </button>
+
+        <!-- Search Conversations Input -->
+        <div class="relative pt-1">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/>
+          </svg>
+          <input id="searchConvInput" oninput="renderConversationsList()" type="text" placeholder="Pesquisar conversas"
+            class="w-full pl-10 pr-3 py-2 rounded-full bg-transparent hover:bg-white/5 focus:bg-[#1e222d] text-xs text-slate-200 placeholder-slate-400 focus:outline-none transition"/>
         </div>
-        <div id="phasesContainer" class="space-y-3"></div>
-      </section>
+      </div>
 
-      <!-- Right Column: AI Copilot & Real Error Troubleshooter -->
-      <section class="lg:col-span-5 glass rounded-2xl p-5 flex flex-col justify-between space-y-4">
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="text-lg font-semibold">Copilot de Erros Reais & Troubleshooting</h2>
-            <span id="activeModelBadge" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
-              gemini-3.8-flash
-            </span>
-          </div>
-          <p class="text-xs text-slate-400 mb-3">
-            Cole erros reais do Nubank (Org Policies, IAM, Cloud Run Job OOM/Timeouts ou BigQuery) para diagnóstico instantâneo:
-          </p>
-
-          <!-- Quick Templates -->
-          <div class="flex flex-wrap gap-1.5 mb-3">
-            <button onclick="setPrompt('Erro na Fase 01: constraints/iam.allowedPolicyMemberDomains bloqueando atribuição da Service Account do CSPR')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
-              Org Policy IAM Domain
-            </button>
-            <button onclick="setPrompt('Erro na Fase 03: Cloud Run Job terminou com Exit Code 137 (OOM) durante processamento de 800k recursos')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
-              Cloud Run Job OOM (Exit 137)
-            </button>
-            <button onclick="setPrompt('Fase 04: Como auditar contagem exata de linhas e GB via __TABLES__ no BigQuery após o CSPR?')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
-              Auditoria __TABLES__ BQ
-            </button>
-          </div>
-
-          <textarea
-            id="copilotInput"
-            rows="4"
-            placeholder="Cole o log de erro real da execução do script ou dúvida de arquitetura..."
-            class="w-full rounded-xl bg-slate-900/90 border border-slate-700 p-3 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
-          ></textarea>
-          <button onclick="sendCopilotMessage()" class="mt-2 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm transition">
-            Diagnosticar com CSPR Copilot (Gemini 3.x)
+      <!-- Section: Customers (Strictly Isolated Workspaces & Libraries) -->
+      <div class="space-y-1.5 pt-2">
+        <div class="flex items-center justify-between px-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Customers</span>
+          <button onclick="openLibraryModal()" title="Abrir Biblioteca do Customer Ativo"
+            class="text-[11px] text-blue-400 hover:text-blue-300 font-medium">
+            Biblioteca (<span id="activeCustLibCount">0</span>)
           </button>
         </div>
 
-        <!-- Output Box -->
-        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 min-h-[220px] max-h-[360px] overflow-y-auto">
-          <div id="copilotOutput" class="text-xs font-mono whitespace-pre-wrap text-slate-300">
-Aguardando log ou comando...
+        <button onclick="openCustomerModal()"
+          class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/5 text-xs font-medium text-slate-300 hover:text-white transition">
+          <span class="text-base leading-none text-blue-400">+</span>
+          <span>Novo customer</span>
+        </button>
+
+        <!-- Dynamic Customers List -->
+        <div id="customersListContainer" class="space-y-0.5"></div>
+      </div>
+
+      <!-- Section: Todas (Conversations bound to Customers) -->
+      <div class="space-y-1.5 pt-3">
+        <div class="flex items-center justify-between px-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Todas</span>
+          <button onclick="toggleFilterByCustomer()" id="filterConvBtn" title="Alternar filtro: Apenas Customer ativo / Todos"
+            class="text-[10px] px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300">
+            Filtro: Customer Ativo
+          </button>
+        </div>
+        <div id="conversationsListContainer" class="space-y-0.5"></div>
+      </div>
+    </div>
+
+    <!-- Bottom User Identity & Active Model Footer -->
+    <div class="p-3.5 border-t border-white/10 bg-[#0f1117]">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <!-- Google Cloud Avatar Circle -->
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-emerald-500 to-amber-500 p-[1.5px] shrink-0">
+            <div class="w-full h-full rounded-full bg-[#13151b] flex items-center justify-center text-xs font-bold text-white" id="userAvatarInitials">
+              G
+            </div>
+          </div>
+          <div class="min-w-0">
+            <div id="userDisplayName" class="text-xs font-medium text-white truncate">Google Security Architect</div>
+            <div id="userEmailAddress" class="text-[11px] text-emerald-400 font-mono truncate">@google.com</div>
           </div>
         </div>
-      </section>
+
+        <span id="sidebarModelBadge" class="px-2 py-0.5 text-[10px] font-mono rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shrink-0">
+          3.8-flash
+        </span>
+      </div>
     </div>
-  </div>
+  </aside>
+
+  <!-- ==================== MAIN CENTER CANVAS ==================== -->
+  <main class="flex-1 h-full gcp-canvas-glow flex flex-col justify-between relative overflow-hidden">
+    <!-- Top Subtle Context Bar -->
+    <div class="w-full px-8 py-4 flex items-center justify-between z-10">
+      <div class="flex items-center gap-2.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="activeCustomerTopBadge" class="text-xs font-medium text-slate-300">
+          Customer Ativo: Carregando...
+        </span>
+        <button onclick="openLibraryModal()"
+          class="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-blue-300 transition">
+          Abrir Biblioteca Isolada
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] text-slate-400">Rede Google • Zero-Trust</span>
+      </div>
+    </div>
+
+    <!-- Center Content Area (Switches between Welcome State, Chat Stream, or Tarefa CSPR Pipeline) -->
+    <div class="flex-1 overflow-y-auto custom-scroll px-6 md:px-16 flex flex-col justify-center items-center">
+      <!-- Greeting Hero (Visible when conversation has no user turns yet & in Conversa mode) -->
+      <div id="welcomeHero" class="text-center max-w-2xl space-y-3 my-auto">
+        <h1 id="greetingHeadline" class="text-3xl md:text-4xl font-semibold tracking-tight text-white">
+          Olá! No que você está pensando?
+        </h1>
+        <p id="greetingSubtitle" class="text-sm text-slate-400">
+          Customer Ativo: <strong class="text-blue-400" id="heroCustName">—</strong> • Todos os scripts, logs e análises ficam isolados neste workspace.
+        </p>
+
+        <!-- Quick Diagnostic Chips -->
+        <div class="flex flex-wrap justify-center gap-2 pt-4">
+          <button onclick="prefillAndSend('Diagnóstico Fase 01: constraints/iam.allowedPolicyMemberDomains bloqueando atribuição da Service Account do CSPR')"
+            class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
+            ⚡ Org Policy IAM Domain
+          </button>
+          <button onclick="prefillAndSend('Diagnóstico Fase 03: Cloud Run Job terminou com Exit Code 137 (OOM) durante processamento de recursos')"
+            class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
+            ⚡ Cloud Run Job OOM (Exit 137)
+          </button>
+          <button onclick="prefillAndSend('Fase 04: Como auditar contagem exata de linhas e GB via __TABLES__ no BigQuery após o CSPR?')"
+            class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
+            ⚡ Auditoria __TABLES__ BigQuery
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Chat Messages Stream (Visible when conversation has messages in Conversa mode) -->
+      <div id="chatStreamContainer" class="hidden w-full max-w-3xl space-y-5 py-6 my-auto"></div>
+
+      <!-- Tarefa Mode: 6-Stage CSPR Pipeline Inspector & Upstream Sync -->
+      <div id="taskPipelineContainer" class="hidden w-full max-w-4xl space-y-4 py-6 my-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-white">Pipeline CSPR (6 Fases de Execução Técnica)</h2>
+            <p class="text-xs text-slate-400">Validação sintática (`bash -n`) e sincronização agnóstica de scripts CSPR.</p>
+          </div>
+          <button onclick="syncUpstreamScripts()"
+            class="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white shadow-lg shadow-blue-600/25 transition">
+            Sincronizar Scripts Base
+          </button>
+        </div>
+        <div id="phasesGridContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Floating Pill Prompt Bar & Mode Toggle Pills (Conversa | Tarefa) -->
+    <div class="w-full max-w-3xl mx-auto px-6 pb-7 pt-2 space-y-3 z-10">
+      <div class="pill-prompt rounded-full px-4 py-2.5 flex items-center gap-3">
+        <!-- Left + Button (Attach to Customer Library) -->
+        <button onclick="openLibraryModal()" title="Adicionar arquivo/log à Biblioteca deste Customer"
+          class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-blue-400 text-lg font-semibold shrink-0 transition">
+          +
+        </button>
+
+        <!-- Prompt Input -->
+        <input id="promptInput"
+          type="text"
+          placeholder="Peça ao CSPR Copilot"
+          onkeydown="if(event.key==='Enter') sendPrompt()"
+          class="flex-1 bg-transparent text-sm text-white placeholder-slate-400 focus:outline-none"/>
+
+        <!-- Gemini 3.x Model Dropdown Selector inside the pill -->
+        <div class="flex items-center gap-1.5 border-l border-white/10 pl-3">
+          <select id="modelSelect" onchange="switchModel(this.value)"
+            class="bg-transparent text-xs font-medium text-slate-300 hover:text-white focus:outline-none cursor-pointer">
+            <option value="gemini-3.8-flash" class="bg-[#181b23]">Gemini 3.8 Flash</option>
+            <option value="gemini-3.1-pro-preview" class="bg-[#181b23]">Gemini 3.1 Pro</option>
+            <option value="gemini-3.7-flash" class="bg-[#181b23]">Gemini 3.7 Flash</option>
+            <option value="gemini-3.5-flash" class="bg-[#181b23]">Gemini 3.5 Flash</option>
+          </select>
+        </div>
+
+        <!-- Send Button -->
+        <button onclick="sendPrompt()" title="Enviar"
+          class="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shrink-0 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mode Toggle Pills: Conversa | Tarefa -->
+      <div class="flex items-center justify-center gap-2">
+        <button id="modeConversaBtn" onclick="setMode('conversa')"
+          class="px-4 py-1.5 rounded-full text-xs font-medium bg-white/10 text-white border border-white/15 transition">
+          Conversa
+        </button>
+        <button id="modeTarefaBtn" onclick="setMode('tarefa')"
+          class="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition">
+          Tarefa
+        </button>
+      </div>
+    </div>
+  </main>
 
   <script>
     let googleIdToken = sessionStorage.getItem('google_id_token') || null;
+    let customers = [];
+    let conversations = [];
+    let phases = [];
+    let activeCustomerId = null;
+    let activeConversationId = null;
+    let currentMode = 'conversa'; // 'conversa' | 'tarefa'
+    let filterByActiveCustomer = true;
 
     function authHeaders() {
       const headers = { 'Content-Type': 'application/json' };
@@ -160,13 +391,33 @@ Aguardando log ou comando...
         }
         const data = await res.json();
         document.getElementById('authModal').classList.add('hidden');
-        document.getElementById('activeModelBadge').innerText = data.model_router.active_model;
-        document.getElementById('modelSelect').value = data.model_router.active_model;
+
+        // User Profile Footer
         if (data.authenticated_user) {
-          document.getElementById('userIdentityBadge').innerText =
-            `✔ ${data.authenticated_user.email} (${data.authenticated_user.auth_method})`;
+          const email = data.authenticated_user.email || 'user@google.com';
+          const name = data.authenticated_user.name || email.split('@')[0];
+          document.getElementById('userDisplayName').innerText = name;
+          document.getElementById('userEmailAddress').innerText = email;
+          document.getElementById('userAvatarInitials').innerText = name.charAt(0).toUpperCase();
+          document.getElementById('greetingHeadline').innerText = `Olá, ${name.split(' ')[0]}! No que você está pensando?`;
         }
-        renderPhases(data.phases);
+
+        // Model Router
+        document.getElementById('modelSelect').value = data.model_router.active_model;
+        document.getElementById('sidebarModelBadge').innerText = data.model_router.active_model.replace('gemini-', '');
+
+        customers = data.customers || [];
+        conversations = data.conversations || [];
+        phases = data.phases || [];
+
+        if (!activeCustomerId && customers.length > 0) {
+          activeCustomerId = customers[0].customer_id;
+        }
+
+        renderCustomersList();
+        renderConversationsList();
+        renderPhasesGrid();
+        updateActiveCustomerHeader();
       } catch (err) {
         console.error(err);
       }
@@ -192,43 +443,196 @@ Aguardando log ou comando...
       loadPlatformStatus();
     }
 
-    function renderPhases(phases) {
-      const container = document.getElementById('phasesContainer');
+    function renderCustomersList() {
+      const container = document.getElementById('customersListContainer');
       container.innerHTML = '';
-      let allInSync = true;
-      phases.forEach(p => {
-        if (!p.in_sync_with_nubank) allInSync = false;
-        const syncBadge = p.in_sync_with_nubank
-          ? `<span class="px-2 py-0.5 text-xs rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Sincronizado (${p.local_sha256})</span>`
-          : `<span class="px-2 py-0.5 text-xs rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">SHA256: ${p.local_sha256}</span>`;
-
-        const syntaxBadge = p.syntax_valid
-          ? `<span class="text-xs text-emerald-400">✔ bash -n OK</span>`
-          : `<span class="text-xs text-rose-400">✖ Erro Sintaxe</span>`;
-
+      customers.forEach(c => {
+        const isSelected = c.customer_id === activeCustomerId;
+        const libCount = (c.library || []).length;
         container.innerHTML += `
-          <div class="glass rounded-xl p-4 flex flex-col gap-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="font-semibold text-sm text-sky-300">${p.title}</div>
-              <div class="flex items-center gap-2">
-                ${syntaxBadge}
-                ${syncBadge}
-              </div>
+          <button onclick="selectCustomer('${c.customer_id}')"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition ${
+              isSelected ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 font-medium' : 'text-slate-300 hover:bg-white/5'
+            }">
+            <div class="flex items-center gap-2.5 truncate">
+              <svg class="w-4 h-4 shrink-0 ${isSelected ? 'text-blue-400' : 'text-slate-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+              </svg>
+              <span class="truncate">${c.name}</span>
             </div>
-            <p class="text-xs text-slate-400">${p.description}</p>
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
-              <code class="text-xs text-slate-400">scripts/${p.script}</code>
-              <button onclick="dryRunPhase('${p.code}')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300">
-                Validar Sintaxe (Dry-Run)
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 shrink-0">${libCount}</span>
+          </button>
+        `;
+      });
+    }
+
+    function selectCustomer(customerId) {
+      activeCustomerId = customerId;
+      activeConversationId = null;
+      renderCustomersList();
+      renderConversationsList();
+      updateActiveCustomerHeader();
+      renderActiveConversationStream();
+    }
+
+    function updateActiveCustomerHeader() {
+      const c = customers.find(x => x.customer_id === activeCustomerId);
+      if (!c) return;
+      document.getElementById('activeCustomerTopBadge').innerText =
+        `Customer Ativo: ${c.name} (${c.gcp_project_id})`;
+      document.getElementById('heroCustName').innerText = `${c.name} (${c.gcp_project_id})`;
+      document.getElementById('activeCustLibCount').innerText = (c.library || []).length;
+    }
+
+    function renderConversationsList() {
+      const container = document.getElementById('conversationsListContainer');
+      const query = (document.getElementById('searchConvInput').value || '').toLowerCase();
+      container.innerHTML = '';
+
+      let filtered = conversations;
+      if (filterByActiveCustomer && activeCustomerId) {
+        filtered = filtered.filter(c => c.customer_id === activeCustomerId);
+      }
+      if (query) {
+        filtered = filtered.filter(c => (c.title || '').toLowerCase().includes(query));
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="px-3 py-2 text-[11px] text-slate-400">Nenhuma conversa neste filtro.</div>`;
+        return;
+      }
+
+      filtered.forEach(conv => {
+        const isSelected = conv.conversation_id === activeConversationId;
+        const cust = customers.find(x => x.customer_id === conv.customer_id);
+        const custBadge = cust ? cust.name.slice(0, 14) : '';
+        container.innerHTML += `
+          <button onclick="selectConversation('${conv.conversation_id}')"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition ${
+              isSelected ? 'bg-white/10 text-white font-medium' : 'text-slate-300 hover:bg-white/5'
+            }">
+            <span class="truncate pr-2">${conv.title}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 shrink-0">${custBadge}</span>
+          </button>
+        `;
+      });
+    }
+
+    function selectConversation(conversationId) {
+      const conv = conversations.find(x => x.conversation_id === conversationId);
+      if (!conv) return;
+      activeConversationId = conversationId;
+      activeCustomerId = conv.customer_id;
+      setMode('conversa');
+      renderCustomersList();
+      renderConversationsList();
+      updateActiveCustomerHeader();
+      renderActiveConversationStream();
+    }
+
+    function startNewConversation() {
+      activeConversationId = null;
+      setMode('conversa');
+      renderConversationsList();
+      renderActiveConversationStream();
+      document.getElementById('promptInput').focus();
+    }
+
+    function renderActiveConversationStream() {
+      const hero = document.getElementById('welcomeHero');
+      const stream = document.getElementById('chatStreamContainer');
+      const conv = conversations.find(x => x.conversation_id === activeConversationId);
+
+      if (currentMode !== 'conversa') {
+        hero.classList.add('hidden');
+        stream.classList.add('hidden');
+        return;
+      }
+
+      if (!conv || !conv.messages || conv.messages.length === 0) {
+        hero.classList.remove('hidden');
+        stream.classList.add('hidden');
+        stream.innerHTML = '';
+        return;
+      }
+
+      hero.classList.add('hidden');
+      stream.classList.remove('hidden');
+      stream.innerHTML = conv.messages.map(m => {
+        const isUser = m.role === 'user';
+        return `
+          <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-2xl rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+              isUser ? 'bg-blue-600/25 border border-blue-500/30 text-white' : 'bg-[#181b23]/95 border border-white/10 text-slate-200'
+            }">
+              <div class="text-[10px] font-mono text-slate-400 mb-1">
+                ${isUser ? 'Você (@google.com)' : `CSPR Copilot • ${m.model_used || 'Gemini 3.x'}`}
+              </div>
+              <div class="whitespace-pre-wrap">${m.content}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPhasesGrid() {
+      const grid = document.getElementById('phasesGridContainer');
+      grid.innerHTML = phases.map(p => {
+        const syntaxBadge = p.syntax_valid
+          ? `<span class="text-[11px] text-emerald-400 font-mono">✔ bash -n OK</span>`
+          : `<span class="text-[11px] text-rose-400 font-mono">✖ Erro Sintaxe</span>`;
+        return `
+          <div class="bg-[#181b23]/90 border border-white/10 rounded-2xl p-4 flex flex-col justify-between gap-2">
+            <div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-blue-300">${p.title}</span>
+                ${syntaxBadge}
+              </div>
+              <p class="text-xs text-slate-400 mt-1">${p.description}</p>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t border-white/5">
+              <code class="text-[11px] text-slate-400">scripts/${p.script}</code>
+              <button onclick="dryRunPhase('${p.code}')"
+                class="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-blue-300 font-medium">
+                Dry-Run
               </button>
             </div>
           </div>
         `;
-      });
+      }).join('');
+    }
 
-      document.getElementById('syncNotice').innerText = allInSync
-        ? '✔ 100% sincronizado com os scripts reais do Nubank (Google/CSPR)'
-        : '✔ Scripts validados no CSPR Studio';
+    function setMode(mode) {
+      currentMode = mode;
+      const btnConv = document.getElementById('modeConversaBtn');
+      const btnTask = document.getElementById('modeTarefaBtn');
+      const taskContainer = document.getElementById('taskPipelineContainer');
+
+      if (mode === 'conversa') {
+        btnConv.className = 'px-4 py-1.5 rounded-full text-xs font-medium bg-white/10 text-white border border-white/15 transition';
+        btnTask.className = 'px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition';
+        taskContainer.classList.add('hidden');
+        renderActiveConversationStream();
+      } else {
+        btnTask.className = 'px-4 py-1.5 rounded-full text-xs font-medium bg-white/10 text-white border border-white/15 transition';
+        btnConv.className = 'px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition';
+        document.getElementById('welcomeHero').classList.add('hidden');
+        document.getElementById('chatStreamContainer').classList.add('hidden');
+        taskContainer.classList.remove('hidden');
+      }
+    }
+
+    function toggleFilterByCustomer() {
+      filterByActiveCustomer = !filterByActiveCustomer;
+      document.getElementById('filterConvBtn').innerText =
+        filterByActiveCustomer ? 'Filtro: Customer Ativo' : 'Filtro: Todas';
+      renderConversationsList();
+    }
+
+    function toggleSidebar() {
+      const sb = document.getElementById('leftSidebar');
+      sb.classList.toggle('w-72');
+      sb.classList.toggle('w-16');
     }
 
     async function switchModel(modelId) {
@@ -238,44 +642,133 @@ Aguardando log ou comando...
         body: JSON.stringify({ model_id: modelId })
       });
       const data = await res.json();
-      document.getElementById('activeModelBadge').innerText = data.active_model;
+      document.getElementById('sidebarModelBadge').innerText = data.active_model.replace('gemini-', '');
     }
 
-    async function syncFromNubank() {
-      const res = await fetch('/api/v1/sync-from-nubank', { method: 'POST', headers: authHeaders() });
-      const data = await res.json();
-      renderPhases(data.phases);
-      document.getElementById('copilotOutput').innerText =
-        `[SYNC NUBANK -> CSPR_COPILOT CONCLUÍDO]\nFonte: ${data.sync_result.source}\nArquivos verificados:\n` +
-        data.sync_result.files.map(f => `- ${f.script}: SHA256=${f.after_sha256} (Atualizado: ${f.updated})`).join('\n');
+    function prefillAndSend(text) {
+      document.getElementById('promptInput').value = text;
+      sendPrompt();
     }
 
-    async function dryRunPhase(code) {
-      const res = await fetch(`/api/v1/phases/${code}/dry-run`, { method: 'POST', headers: authHeaders() });
-      const data = await res.json();
-      document.getElementById('copilotOutput').innerText =
-        `[DRY-RUN FASE ${code} - ${data.script}]\nLinhas: ${data.lines}\nSHA256: ${data.sha256}\nSintaxe bash -n: ${data.syntax_valid ? 'OK' : 'ERRO'}\n${data.stderr || ''}`;
-    }
+    async function sendPrompt() {
+      const input = document.getElementById('promptInput');
+      const msg = input.value.trim();
+      if (!msg || !activeCustomerId) return;
+      input.value = '';
+      setMode('conversa');
 
-    function setPrompt(text) {
-      document.getElementById('copilotInput').value = text;
-    }
-
-    async function sendCopilotMessage() {
-      const msg = document.getElementById('copilotInput').value;
-      if (!msg.trim()) return;
-      document.getElementById('copilotOutput').innerText = 'Consultando CSPR Copilot (Gemini 3.x)...';
       const res = await fetch('/api/v1/copilot/chat', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
           message: msg,
+          customer_id: activeCustomerId,
+          conversation_id: activeConversationId,
           preferred_model: document.getElementById('modelSelect').value
         })
       });
       const data = await res.json();
-      document.getElementById('copilotOutput').innerText =
-        `[Modelo Utilizado: ${data.model_used}]\n\n${data.response}`;
+      if (data.conversation) {
+        activeConversationId = data.conversation.conversation_id;
+        const idx = conversations.findIndex(x => x.conversation_id === activeConversationId);
+        if (idx >= 0) {
+          conversations[idx] = data.conversation;
+        } else {
+          conversations.unshift(data.conversation);
+        }
+      }
+      renderConversationsList();
+      renderActiveConversationStream();
+    }
+
+    function openCustomerModal() {
+      document.getElementById('newCustomerModal').classList.remove('hidden');
+    }
+    function closeCustomerModal() {
+      document.getElementById('newCustomerModal').classList.add('hidden');
+    }
+
+    async function createNewCustomer() {
+      const name = document.getElementById('custNameInput').value.trim();
+      const project = document.getElementById('custProjectInput').value.trim();
+      const org = document.getElementById('custOrgInput').value.trim();
+      if (!name) return;
+
+      const res = await fetch('/api/v1/customers', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ name, gcp_project_id: project, org_id: org })
+      });
+      const newCust = await res.json();
+      customers.push(newCust);
+      activeCustomerId = newCust.customer_id;
+      activeConversationId = null;
+      closeCustomerModal();
+      renderCustomersList();
+      renderConversationsList();
+      updateActiveCustomerHeader();
+      renderActiveConversationStream();
+    }
+
+    function openLibraryModal() {
+      const c = customers.find(x => x.customer_id === activeCustomerId);
+      if (!c) return;
+      document.getElementById('libraryModalTitle').innerText = `Biblioteca Isolada • ${c.name}`;
+      const list = document.getElementById('libraryItemsList');
+      const items = c.library || [];
+      if (items.length === 0) {
+        list.innerHTML = `<div class="text-xs text-slate-400">Nenhum arquivo anexado a este Customer ainda.</div>`;
+      } else {
+        list.innerHTML = items.map(item => `
+          <div class="rounded-xl bg-[#0e1015] border border-white/10 p-3 flex items-start justify-between gap-2">
+            <div>
+              <div class="text-xs font-semibold text-blue-300">[${item.type.toUpperCase()}] ${item.title}</div>
+              <div class="text-xs text-slate-400 mt-0.5">${item.summary}</div>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono shrink-0">${item.added_at || ''}</span>
+          </div>
+        `).join('');
+      }
+      document.getElementById('libraryModal').classList.remove('hidden');
+    }
+    function closeLibraryModal() {
+      document.getElementById('libraryModal').classList.add('hidden');
+    }
+
+    async function addLibraryItemToCustomer() {
+      const title = document.getElementById('libItemTitle').value.trim();
+      const type = document.getElementById('libItemType').value;
+      const summary = document.getElementById('libItemSummary').value.trim();
+      if (!title || !summary || !activeCustomerId) return;
+
+      const res = await fetch(`/api/v1/customers/${activeCustomerId}/library`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ title, item_type: type, summary })
+      });
+      const data = await res.json();
+      if (data.customer) {
+        const idx = customers.findIndex(x => x.customer_id === activeCustomerId);
+        if (idx >= 0) customers[idx] = data.customer;
+      }
+      document.getElementById('libItemTitle').value = '';
+      document.getElementById('libItemSummary').value = '';
+      openLibraryModal();
+      renderCustomersList();
+      updateActiveCustomerHeader();
+    }
+
+    async function syncUpstreamScripts() {
+      const res = await fetch('/api/v1/sync-upstream', { method: 'POST', headers: authHeaders() });
+      const data = await res.json();
+      phases = data.phases || phases;
+      renderPhasesGrid();
+    }
+
+    async function dryRunPhase(code) {
+      const res = await fetch(`/api/v1/phases/${code}/dry-run`, { method: 'POST', headers: authHeaders() });
+      const data = await res.json();
+      prefillAndSend(`Analise o resultado do Dry-Run da Fase ${code} (${data.script}): Sintaxe bash -n=${data.syntax_valid}, SHA256=${data.sha256}`);
     }
 
     loadPlatformStatus();

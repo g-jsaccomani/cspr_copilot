@@ -53,7 +53,7 @@ echo -e "${CYAN}[2/4] Deploying Findings Cloud Run Job (cspr-findings-job)...${N
 PROCESSED_FINDINGS_YAML="${BASE_DIR}/local_tests/cloudrun-findings-processed-${BQ_PROJECT_ID}.yaml"
 TEMPLATE_FINDINGS_FILE="${BASE_DIR}/templates/cloudrun-findings-job.template.yaml"
 ORGANIZATION_ID="${ORGANIZATION_ID:-802070535070}"
-ORG_DOMAIN="${ORG_DOMAIN:-nubank.com.br}"
+ORG_DOMAIN="${ORG_DOMAIN:-customer-domain.com}"
 
 sed -e "s/\${BQ_PROJECT_ID}/${BQ_PROJECT_ID}/g" \
     -e "s/\${LOCATION}/${LOCATION}/g" \

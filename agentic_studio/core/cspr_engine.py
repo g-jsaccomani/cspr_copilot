@@ -1,4 +1,4 @@
-"""CSPR Engine: Orchestrates CSPR scripts, Nubank sync, and real-world error diagnostics."""
+"""CSPR Engine: Orchestrates customer-agnostic CSPR scripts, upstream sync, and real-world error diagnostics."""
 
 import hashlib
 import os
@@ -79,15 +79,15 @@ CSPR_PHASES: List[Dict[str, Any]] = [
 
 
 class CSPREngine:
-    """Core orchestrator for CSPR Copilot & Studio."""
+    """Core orchestrator for customer-agnostic CSPR Copilot & Studio."""
 
-    def __init__(self, repo_root: Optional[Path] = None, nubank_repo_root: Optional[Path] = None) -> None:
+    def __init__(self, repo_root: Optional[Path] = None, upstream_repo_root: Optional[Path] = None) -> None:
         self.repo_root: Path = repo_root or Path(__file__).resolve().parents[2]
         self.scripts_dir: Path = self.repo_root / "scripts"
-        self.nubank_repo_root: Path = nubank_repo_root or Path(
-            os.getenv("NUBANK_CSPR_PATH", "/Users/jsaccomani/Documents/Jetsky/Google/CSPR")
+        self.upstream_repo_root: Path = upstream_repo_root or Path(
+            os.getenv("UPSTREAM_CSPR_PATH", "/Users/jsaccomani/Documents/Jetsky/Google/CSPR")
         )
-        self.nubank_scripts_dir: Path = self.nubank_repo_root / "scripts"
+        self.upstream_scripts_dir: Path = self.upstream_repo_root / "scripts"
 
     def _file_sha256(self, path: Path) -> str:
         if not path.exists():
@@ -95,13 +95,13 @@ class CSPREngine:
         return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
 
     def get_phases_status(self) -> List[Dict[str, Any]]:
-        """Returns metadata, SHA256 sync status vs Nubank repo, and bash syntax check for each script."""
+        """Returns metadata, SHA256 sync status vs upstream repo, and bash syntax check for each script."""
         results: List[Dict[str, Any]] = []
         for phase in CSPR_PHASES:
             local_path = self.scripts_dir / phase["script"]
-            nubank_path = self.nubank_scripts_dir / phase["script"]
+            upstream_path = self.upstream_scripts_dir / phase["script"]
             local_hash = self._file_sha256(local_path)
-            nubank_hash = self._file_sha256(nubank_path)
+            upstream_hash = self._file_sha256(upstream_path)
 
             syntax_ok = False
             syntax_msg = "Script not found"
@@ -120,27 +120,28 @@ class CSPREngine:
                     **phase,
                     "local_exists": local_path.exists(),
                     "local_sha256": local_hash,
-                    "nubank_sha256": nubank_hash,
-                    "in_sync_with_nubank": local_hash == nubank_hash and local_hash != "missing",
+                    "upstream_sha256": upstream_hash,
+                    "in_sync_with_upstream": local_hash == upstream_hash and local_hash != "missing",
                     "syntax_valid": syntax_ok,
                     "syntax_message": syntax_msg,
                 }
             )
         return results
 
-    def sync_from_nubank(self) -> Dict[str, Any]:
-        """Pulls the latest real-world tested scripts from Google/CSPR (Nubank) into cspr_copilot."""
-        if not self.nubank_scripts_dir.exists():
+    def sync_from_upstream(self) -> Dict[str, Any]:
+        """Pulls the latest tested scripts from upstream CSPR engine into cspr_copilot."""
+        if not self.upstream_scripts_dir.exists():
             return {
-                "status": "error",
-                "message": f"Nubank base directory not found at {self.nubank_scripts_dir}",
+                "status": "embedded",
+                "message": "Using container-embedded CSPR scripts (Upstream local path not mounted in Cloud Run).",
+                "files": [],
             }
 
         synced_files: List[Dict[str, str]] = []
         self.scripts_dir.mkdir(parents=True, exist_ok=True)
         for phase in CSPR_PHASES:
             script_name = phase["script"]
-            src = self.nubank_scripts_dir / script_name
+            src = self.upstream_scripts_dir / script_name
             dst = self.scripts_dir / script_name
             if src.exists():
                 before_hash = self._file_sha256(dst)
@@ -156,7 +157,7 @@ class CSPREngine:
                 )
         return {
             "status": "ok",
-            "source": str(self.nubank_scripts_dir),
+            "source": str(self.upstream_scripts_dir),
             "destination": str(self.scripts_dir),
             "files": synced_files,
         }
