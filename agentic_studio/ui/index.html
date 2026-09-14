@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSPR Copilot & Agentic Studio (Gemini 3.x)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: radial-gradient(circle at top right, #0f172a, #020617 70%);
+      color: #f8fafc;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Top Header -->
+    <header class="glass rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            GEMINI 3.x MULTI-MODEL
+          </span>
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+            NUBANK SYNC LINKED
+          </span>
+        </div>
+        <h1 class="text-2xl font-bold mt-2 tracking-tight">CSPR Copilot & Agentic Studio</h1>
+        <p class="text-sm text-slate-400">
+          Plataforma Agentic de Cloud Security Posture Review sincronizada com os scripts reais de campo (<code class="text-sky-300">Google/CSPR</code>).
+        </p>
+      </div>
+
+      <!-- Model Selector & Sync Button -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2">
+          <label for="modelSelect" class="text-xs text-slate-400 font-medium">Modelo Gemini:</label>
+          <select id="modelSelect" onchange="switchModel(this.value)" class="bg-transparent text-sm font-semibold text-emerald-300 focus:outline-none">
+            <option value="gemini-3.8-flash">gemini-3.8-flash (GA Principal)</option>
+            <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Raciocínio Profundo)</option>
+            <option value="gemini-3.7-flash">gemini-3.7-flash (GA Estável)</option>
+            <option value="gemini-3.5-flash">gemini-3.5-flash (Fallback)</option>
+          </select>
+        </div>
+
+        <button onclick="syncFromNubank()" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-semibold transition shadow-lg shadow-sky-600/30">
+          Sincronizar com Nubank (Google/CSPR)
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left Column: 4 CSPR Phases -->
+      <section class="lg:col-span-7 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Pipeline CSPR (4 Fases de Execução)</h2>
+          <span id="syncNotice" class="text-xs text-slate-400">Verificando status...</span>
+        </div>
+        <div id="phasesContainer" class="space-y-3"></div>
+      </section>
+
+      <!-- Right Column: AI Copilot & Real Error Troubleshooter -->
+      <section class="lg:col-span-5 glass rounded-2xl p-5 flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-semibold">Copilot de Erros Reais & Troubleshooting</h2>
+            <span id="activeModelBadge" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
+              gemini-3.8-flash
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mb-3">
+            Cole erros reais do Nubank (Org Policies, IAM, Cloud Run Job OOM/Timeouts ou BigQuery) para diagnóstico instantâneo:
+          </p>
+
+          <!-- Quick Templates -->
+          <div class="flex flex-wrap gap-1.5 mb-3">
+            <button onclick="setPrompt('Erro na Fase 01: constraints/iam.allowedPolicyMemberDomains bloqueando atribuição da Service Account do CSPR')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+              Org Policy IAM Domain
+            </button>
+            <button onclick="setPrompt('Erro na Fase 03: Cloud Run Job terminou com Exit Code 137 (OOM) durante processamento de 800k recursos')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+              Cloud Run Job OOM (Exit 137)
+            </button>
+            <button onclick="setPrompt('Fase 04: Como auditar contagem exata de linhas e GB via __TABLES__ no BigQuery após o CSPR?')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+              Auditoria __TABLES__ BQ
+            </button>
+          </div>
+
+          <textarea
+            id="copilotInput"
+            rows="4"
+            placeholder="Cole o log de erro real da execução do script ou dúvida de arquitetura..."
+            class="w-full rounded-xl bg-slate-900/90 border border-slate-700 p-3 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+          ></textarea>
+          <button onclick="sendCopilotMessage()" class="mt-2 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm transition">
+            Diagnosticar com CSPR Copilot (Gemini 3.x)
+          </button>
+        </div>
+
+        <!-- Output Box -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 min-h-[220px] max-h-[360px] overflow-y-auto">
+          <div id="copilotOutput" class="text-xs font-mono whitespace-pre-wrap text-slate-300">
+Aguardando log ou comando...
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    async function loadPlatformStatus() {
+      const res = await fetch('/api/v1/status');
+      const data = await res.json();
+      document.getElementById('activeModelBadge').innerText = data.model_router.active_model;
+      document.getElementById('modelSelect').value = data.model_router.active_model;
+      renderPhases(data.phases);
+    }
+
+    function renderPhases(phases) {
+      const container = document.getElementById('phasesContainer');
+      container.innerHTML = '';
+      let allInSync = true;
+      phases.forEach(p => {
+        if (!p.in_sync_with_nubank) allInSync = false;
+        const syncBadge = p.in_sync_with_nubank
+          ? `<span class="px-2 py-0.5 text-xs rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Em Sincronia com Nubank (${p.local_sha256})</span>`
+          : `<span class="px-2 py-0.5 text-xs rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Divergente (Local: ${p.local_sha256} | Nubank: ${p.nubank_sha256})</span>`;
+
+        const syntaxBadge = p.syntax_valid
+          ? `<span class="text-xs text-emerald-400">✔ bash -n OK</span>`
+          : `<span class="text-xs text-rose-400">✖ Erro Sintaxe</span>`;
+
+        container.innerHTML += `
+          <div class="glass rounded-xl p-4 flex flex-col gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="font-semibold text-sm text-sky-300">${p.title}</div>
+              <div class="flex items-center gap-2">
+                ${syntaxBadge}
+                ${syncBadge}
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">${p.description}</p>
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+              <code class="text-xs text-slate-400">scripts/${p.script}</code>
+              <button onclick="dryRunPhase('${p.code}')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-sky-300">
+                Validar Sintaxe (Dry-Run)
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('syncNotice').innerText = allInSync
+        ? '✔ 100% sincronizado com /Users/jsaccomani/Documents/Jetsky/Google/CSPR'
+        : '⚠ Atualizações pendentes do repositório Nubank';
+    }
+
+    async function switchModel(modelId) {
+      const res = await fetch('/api/v1/models/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id: modelId })
+      });
+      const data = await res.json();
+      document.getElementById('activeModelBadge').innerText = data.active_model;
+    }
+
+    async function syncFromNubank() {
+      const res = await fetch('/api/v1/sync-from-nubank', { method: 'POST' });
+      const data = await res.json();
+      renderPhases(data.phases);
+      document.getElementById('copilotOutput').innerText =
+        `[SYNC NUBANK -> CSPR_COPILOT CONCLUÍDO]\nFonte: ${data.sync_result.source}\nArquivos verificados:\n` +
+        data.sync_result.files.map(f => `- ${f.script}: SHA256=${f.after_sha256} (Atualizado: ${f.updated})`).join('\n');
+    }
+
+    async function dryRunPhase(code) {
+      const res = await fetch(`/api/v1/phases/${code}/dry-run`, { method: 'POST' });
+      const data = await res.json();
+      document.getElementById('copilotOutput').innerText =
+        `[DRY-RUN FASE ${code} - ${data.script}]\nLinhas: ${data.lines}\nSHA256: ${data.sha256}\nSintaxe bash -n: ${data.syntax_valid ? 'OK' : 'ERRO'}\n${data.stderr || ''}`;
+    }
+
+    function setPrompt(text) {
+      document.getElementById('copilotInput').value = text;
+    }
+
+    async function sendCopilotMessage() {
+      const msg = document.getElementById('copilotInput').value;
+      if (!msg.trim()) return;
+      document.getElementById('copilotOutput').innerText = 'Consultando CSPR Copilot (Gemini 3.x)...';
+      const res = await fetch('/api/v1/copilot/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          preferred_model: document.getElementById('modelSelect').value
+        })
+      });
+      const data = await res.json();
+      document.getElementById('copilotOutput').innerText =
+        `[Modelo Utilizado: ${data.model_used}]\n\n${data.response}`;
+    }
+
+    loadPlatformStatus();
+  </script>
+</body>
+</html>
