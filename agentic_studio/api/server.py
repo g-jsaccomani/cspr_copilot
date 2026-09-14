@@ -41,6 +41,7 @@ class CopilotChatRequest(BaseModel):
 
 
 @app.get("/healthz")
+@app.get("/api/v1/health")
 def healthz() -> Dict[str, str]:
     """Cloud Run liveness and readiness probe."""
     return {"status": "healthy", "service": "cspr-copilot-studio"}

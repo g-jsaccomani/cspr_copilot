@@ -37,15 +37,15 @@ gcloud services enable \
   iap.googleapis.com \
   --project="${PROJECT_ID}" --quiet || true
 
-# 3. Deploy to Google Cloud Run
+# 3. Deploy to Google Cloud Run (using ^;^ delimiter so commas and @ work safely)
 echo "[3/4] Deploying ${SERVICE_NAME} to Cloud Run (${REGION})..."
-ENV_VARS="GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
-ENV_VARS="${ENV_VARS},GOOGLE_CLOUD_REGION=${REGION}"
-ENV_VARS="${ENV_VARS},GEMINI_REASONING_MODEL=gemini-3.8-flash"
-ENV_VARS="${ENV_VARS},GEMINI_FAST_MODEL=gemini-3.8-flash"
-ENV_VARS="${ENV_VARS},ALLOWED_DOMAINS=google.com,jsaccomani.altostrat.com"
-ENV_VARS="${ENV_VARS},ALLOWED_EMAILS=jsaccomani@google.com,admin@jsaccomani.altostrat.com"
-ENV_VARS="${ENV_VARS},ALLOW_LOCAL_DEV=false"
+ENV_VARS="^;^GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
+ENV_VARS="${ENV_VARS};GOOGLE_CLOUD_REGION=${REGION}"
+ENV_VARS="${ENV_VARS};GEMINI_REASONING_MODEL=gemini-3.8-flash"
+ENV_VARS="${ENV_VARS};GEMINI_FAST_MODEL=gemini-3.8-flash"
+ENV_VARS="${ENV_VARS};ALLOWED_DOMAINS=google.com,jsaccomani.altostrat.com"
+ENV_VARS="${ENV_VARS};ALLOWED_EMAILS=jsaccomani@google.com,admin@jsaccomani.altostrat.com"
+ENV_VARS="${ENV_VARS};ALLOW_LOCAL_DEV=false"
 
 gcloud run deploy "${SERVICE_NAME}" \
   --source="${SCRIPT_DIR}" \
