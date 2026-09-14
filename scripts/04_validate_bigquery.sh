@@ -46,7 +46,7 @@ if ! DATASETS=$(bq ls --project_id="${BQ_PROJECT_ID}" --format=prettyjson 2>"${B
     cat "${BQ_ERR}"
     rm -f "${BQ_ERR}"
     echo ""
-    echo -e "${CYAN}Tip:${NC} Make sure you are authenticated with the target customer GCP account (${BOLD}gcloud auth login${NC}) or run inside Cloud Shell."
+    echo -e "${CYAN}Tip:${NC} Make sure you are authenticated with the Nubank account (${BOLD}gcloud auth login${NC}) or run inside Cloud Shell."
     exit 1
 fi
 rm -f "${BQ_ERR}"
