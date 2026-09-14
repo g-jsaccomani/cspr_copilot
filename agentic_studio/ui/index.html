@@ -416,6 +416,18 @@
       return headers;
     }
 
+    async function saveUserPreferences(prefs) {
+      try {
+        await fetch('/api/v1/user/preferences', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(prefs)
+        });
+      } catch (err) {
+        console.debug('Failed to sync user preferences:', err);
+      }
+    }
+
     async function loadPlatformStatus() {
       try {
         // First apply cached JWT profile immediately if present in browser
@@ -437,12 +449,19 @@
         // User Profile Footer from Server (or verified JWT)
         if (data.authenticated_user) {
           applyUserProfileToUI(data.authenticated_user);
+          if (!activeCustomerId && data.authenticated_user.active_customer_id) {
+            activeCustomerId = data.authenticated_user.active_customer_id;
+          }
+          if (!activeConversationId && data.authenticated_user.active_conversation_id) {
+            activeConversationId = data.authenticated_user.active_conversation_id;
+          }
         }
 
         // Model Router
         if (data.model_router) {
-          document.getElementById('modelSelect').value = data.model_router.active_model;
-          document.getElementById('sidebarModelBadge').innerText = data.model_router.active_model.replace('gemini-', '');
+          const preferred = (data.authenticated_user && data.authenticated_user.preferred_model) || data.model_router.active_model;
+          document.getElementById('modelSelect').value = preferred;
+          document.getElementById('sidebarModelBadge').innerText = preferred.replace('gemini-', '');
         }
 
         customers = data.customers || [];
@@ -457,6 +476,14 @@
         renderConversationsList();
         renderPhasesGrid();
         updateActiveCustomerHeader();
+
+        // Automatically reload last active conversation if one was persisted
+        if (activeConversationId) {
+          const exists = conversations.find(c => c.conversation_id === activeConversationId);
+          if (exists) {
+            await loadConversationMessages(activeConversationId, exists.customer_id);
+          }
+        }
       } catch (err) {
         console.error(err);
       }
@@ -542,6 +569,7 @@
       renderConversationsList();
       updateActiveCustomerHeader();
       renderActiveConversationStream();
+      saveUserPreferences({ active_customer_id: customerId, active_conversation_id: '' });
     }
 
     function updateActiveCustomerHeader() {
@@ -597,6 +625,7 @@
       renderConversationsList();
       updateActiveCustomerHeader();
       renderActiveConversationStream();
+      saveUserPreferences({ active_customer_id: conv.customer_id, active_conversation_id: conversationId });
     }
 
     function startNewConversation() {
@@ -712,6 +741,7 @@
       });
       const data = await res.json();
       document.getElementById('sidebarModelBadge').innerText = data.active_model.replace('gemini-', '');
+      saveUserPreferences({ active_model: modelId });
     }
 
     function prefillAndSend(text) {

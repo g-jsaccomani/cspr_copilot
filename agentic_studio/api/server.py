@@ -62,6 +62,14 @@ class CopilotChatRequest(BaseModel):
     phase_context: Optional[str] = None
 
 
+class UserPreferencesRequest(BaseModel):
+    active_customer_id: Optional[str] = None
+    active_conversation_id: Optional[str] = None
+    preferred_model: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+
+
 @app.get("/healthz")
 @app.get("/api/v1/health")
 def healthz() -> Dict[str, str]:
@@ -90,6 +98,27 @@ def get_current_user_identity(
             "32555940559.apps.googleusercontent.com",
         ),
     }
+
+
+@app.post("/api/v1/user/preferences")
+def update_user_preferences(
+    req: UserPreferencesRequest,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Persists user session preferences (active customer, conversation, model) in Cloud Firestore."""
+    updated_payload = dict(user)
+    if req.active_customer_id is not None:
+        updated_payload["active_customer_id"] = req.active_customer_id
+    if req.active_conversation_id is not None:
+        updated_payload["active_conversation_id"] = req.active_conversation_id
+    if req.preferred_model is not None:
+        updated_payload["preferred_model"] = req.preferred_model
+    if req.name is not None:
+        updated_payload["name"] = req.name
+    if req.picture is not None:
+        updated_payload["picture"] = req.picture
+    saved = customer_store.save_user_session(updated_payload)
+    return {"status": "saved", "session": saved}
 
 
 @app.get("/api/v1/status")
