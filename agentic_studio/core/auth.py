@@ -47,9 +47,10 @@ def verify_google_id_token(id_token: str) -> Optional[Dict[str, Any]]:
             return {
                 "email": email,
                 "domain": domain,
-                "name": payload.get("name", email.split("@")[0]),
+                "name": payload.get("name") or email.split("@")[0].replace(".", " ").title(),
                 "picture": payload.get("picture", ""),
-                "auth_method": "google_sso",
+                "auth_method": "google_sso_jwt",
+                "verified_by_google": True,
             }
     except HTTPException:
         raise

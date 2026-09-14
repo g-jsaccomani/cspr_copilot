@@ -203,24 +203,37 @@
     </div>
 
     <!-- Bottom User Identity & Active Model Footer -->
-    <div class="p-3.5 border-t border-white/10 bg-[#0f1117]">
+    <div class="p-3.5 border-t border-white/10 bg-[#0f1117] space-y-2">
       <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <!-- Google Cloud Avatar Circle -->
-          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-emerald-500 to-amber-500 p-[1.5px] shrink-0">
+        <div onclick="triggerGoogleAccountPicker()" title="Clique para sincronizar/trocar sua conta Google do Chrome"
+          class="flex items-center gap-2.5 min-w-0 cursor-pointer hover:bg-white/5 p-1 rounded-xl transition">
+          <!-- Google Cloud Avatar Circle (Supports Real Google Profile Photo) -->
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-emerald-500 to-amber-500 p-[1.5px] shrink-0 overflow-hidden">
+            <img id="userAvatarImage" src="" alt="Avatar" class="hidden w-full h-full rounded-full object-cover" />
             <div class="w-full h-full rounded-full bg-[#13151b] flex items-center justify-center text-xs font-bold text-white" id="userAvatarInitials">
-              G
+              J
             </div>
           </div>
           <div class="min-w-0">
-            <div id="userDisplayName" class="text-xs font-medium text-white truncate">Google Security Architect</div>
-            <div id="userEmailAddress" class="text-[11px] text-emerald-400 font-mono truncate">@google.com</div>
+            <div id="userDisplayName" class="text-xs font-medium text-white truncate">Joabson Saccomani</div>
+            <div id="userEmailAddress" class="text-[11px] text-emerald-400 font-mono truncate">jsaccomani@google.com</div>
           </div>
         </div>
 
         <span id="sidebarModelBadge" class="px-2 py-0.5 text-[10px] font-mono rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shrink-0">
           3.8-flash
         </span>
+      </div>
+      <!-- Hidden Google Sign-In container for 1-click Chrome Account Picker -->
+      <div id="googlePickerContainer" class="hidden pt-1 flex justify-center"></div>
+      <div class="flex items-center justify-between px-1">
+        <span id="authMethodBadge" class="text-[10px] text-slate-400 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+          Sessão @google.com Ativa
+        </span>
+        <button onclick="triggerGoogleAccountPicker()" class="text-[10px] text-blue-400 hover:text-blue-300 underline">
+          Sincronizar Chrome SSO
+        </button>
       </div>
     </div>
   </aside>
@@ -343,7 +356,7 @@
   </main>
 
   <script>
-    let googleIdToken = sessionStorage.getItem('google_id_token') || null;
+    let googleIdToken = localStorage.getItem('google_id_token') || sessionStorage.getItem('google_id_token') || null;
     let customers = [];
     let conversations = [];
     let phases = [];
@@ -351,6 +364,49 @@
     let activeConversationId = null;
     let currentMode = 'conversa'; // 'conversa' | 'tarefa'
     let filterByActiveCustomer = true;
+
+    function parseJwt(token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join(''));
+        return JSON.parse(jsonPayload);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function applyUserProfileToUI(user) {
+      const email = user.email || 'jsaccomani@google.com';
+      const name = user.name || 'Joabson Saccomani';
+      const picture = user.picture || '';
+      const method = user.auth_method || 'direct_google_session';
+
+      document.getElementById('userDisplayName').innerText = name;
+      document.getElementById('userEmailAddress').innerText = email;
+      document.getElementById('greetingHeadline').innerText = `Olá, ${name.split(' ')[0]}! No que você está pensando?`;
+
+      const imgEl = document.getElementById('userAvatarImage');
+      const initEl = document.getElementById('userAvatarInitials');
+      if (picture) {
+        imgEl.src = picture;
+        imgEl.classList.remove('hidden');
+        initEl.classList.add('hidden');
+      } else {
+        imgEl.classList.add('hidden');
+        initEl.classList.remove('hidden');
+        initEl.innerText = name.charAt(0).toUpperCase();
+      }
+
+      const badgeEl = document.getElementById('authMethodBadge');
+      if (method === 'google_sso_jwt' || method === 'google_cloud_iap') {
+        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Google Chrome SSO Verificado`;
+      } else {
+        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Sessão Direta @google.com`;
+      }
+    }
 
     function authHeaders() {
       const headers = { 'Content-Type': 'application/json' };
@@ -362,17 +418,25 @@
 
     async function loadPlatformStatus() {
       try {
+        // First apply cached JWT profile immediately if present in browser
+        if (googleIdToken) {
+          const claims = parseJwt(googleIdToken);
+          if (claims && claims.email) {
+            applyUserProfileToUI({
+              email: claims.email,
+              name: claims.name,
+              picture: claims.picture,
+              auth_method: 'google_sso_jwt'
+            });
+          }
+        }
+
         const res = await fetch('/api/v1/status', { headers: authHeaders() });
         const data = await res.json();
 
-        // User Profile Footer
+        // User Profile Footer from Server (or verified JWT)
         if (data.authenticated_user) {
-          const email = data.authenticated_user.email || 'jsaccomani@google.com';
-          const name = data.authenticated_user.name || 'Joabson Saccomani';
-          document.getElementById('userDisplayName').innerText = name;
-          document.getElementById('userEmailAddress').innerText = email;
-          document.getElementById('userAvatarInitials').innerText = name.charAt(0).toUpperCase();
-          document.getElementById('greetingHeadline').innerText = `Olá, ${name.split(' ')[0]}! No que você está pensando?`;
+          applyUserProfileToUI(data.authenticated_user);
         }
 
         // Model Router
@@ -403,16 +467,50 @@
         window.google.accounts.id.initialize({
           client_id: '32555940559.apps.googleusercontent.com',
           callback: handleGoogleCredentialResponse,
-          auto_select: true
+          auto_select: true,
+          use_fedcm_for_prompt: true
         });
+        // Trigger non-blocking Google One-Tap / FedCM silent auto-login
+        window.google.accounts.id.prompt();
+      }
+    }
+
+    function triggerGoogleAccountPicker() {
+      const pickerContainer = document.getElementById('googlePickerContainer');
+      pickerContainer.classList.toggle('hidden');
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        window.google.accounts.id.initialize({
+          client_id: '32555940559.apps.googleusercontent.com',
+          callback: handleGoogleCredentialResponse
+        });
+        window.google.accounts.id.renderButton(
+          pickerContainer,
+          { theme: 'filled_black', size: 'small', text: 'continue_with', shape: 'pill' }
+        );
+        window.google.accounts.id.prompt();
       }
     }
 
     function handleGoogleCredentialResponse(response) {
       googleIdToken = response.credential;
+      localStorage.setItem('google_id_token', googleIdToken);
       sessionStorage.setItem('google_id_token', googleIdToken);
+      document.getElementById('googlePickerContainer').classList.add('hidden');
+      const claims = parseJwt(googleIdToken);
+      if (claims) {
+        applyUserProfileToUI({
+          email: claims.email,
+          name: claims.name,
+          picture: claims.picture,
+          auth_method: 'google_sso_jwt'
+        });
+      }
       loadPlatformStatus();
     }
+
+    window.addEventListener('load', () => {
+      initSilentGoogleSSO();
+    });
 
     function renderCustomersList() {
       const container = document.getElementById('customersListContainer');
