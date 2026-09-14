@@ -21,7 +21,11 @@ echo "============================================================"
 
 # 1. Sync latest CSPR scripts from Upstream
 echo "[1/5] Syncing latest CSPR scripts from Upstream CSPR Engine..."
-python3 sync_cspr_upstream.py
+if [ -f "scripts/sync_cspr_upstream.py" ]; then
+  python3 scripts/sync_cspr_upstream.py
+elif [ -f "sync_cspr_upstream.py" ]; then
+  python3 sync_cspr_upstream.py
+fi
 
 # 2. Enable Required Google Cloud APIs (Idempotent)
 echo "[2/5] Enabling Cloud Run, Firestore, Model Armor, IAP & Vertex AI APIs..."
