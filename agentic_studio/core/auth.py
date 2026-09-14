@@ -92,7 +92,7 @@ def get_verified_google_user(
 
     # 3. Seamless Direct @google.com Corporate Session (No blocking modal required)
     default_email = os.getenv("DEFAULT_GOOGLE_USER", "jsaccomani@google.com")
-    default_name = os.getenv("DEFAULT_GOOGLE_NAME", "Juliano Saccomani")
+    default_name = os.getenv("DEFAULT_GOOGLE_NAME", "Joabson Saccomani")
     return {
         "email": default_email,
         "domain": "google.com",
