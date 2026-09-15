@@ -116,6 +116,12 @@ gcloud run services add-iam-policy-binding "${SERVICE_NAME}" \
   --role="roles/run.invoker" \
   --quiet >/dev/null 2>&1 || true
 
+gcloud run services update-traffic "${SERVICE_NAME}" \
+  --to-latest \
+  --region="${REGION}" \
+  --project="${PROJECT_ID}" \
+  --quiet >/dev/null 2>&1 || true
+
 SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" --region="${REGION}" --project="${PROJECT_ID}" --format="value(status.url)")
 
 echo ""
