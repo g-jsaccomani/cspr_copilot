@@ -359,11 +359,12 @@ def copilot_chat(
     if not customer:
         raise HTTPException(status_code=404, detail=f"Customer workspace {req.customer_id} not found.")
 
+    resolved_customer_id = customer["customer_id"]
     conv = None
     if req.conversation_id:
         conv = customer_store.get_conversation(req.conversation_id)
-    if not conv or conv.get("customer_id") != req.customer_id:
-        conv = customer_store.create_conversation(customer_id=req.customer_id, title=req.message[:48])
+    if not conv or conv.get("customer_id") != resolved_customer_id:
+        conv = customer_store.create_conversation(customer_id=resolved_customer_id, title=req.message[:48])
 
     customer_store.append_message(
         conversation_id=conv["conversation_id"],

@@ -353,9 +353,10 @@ class CustomerStore:
         item_type: str,
         content_or_summary: str,
     ) -> Dict[str, Any]:
-        customer = self._data["customers"].get(customer_id)
+        customer = self.get_customer(customer_id)
         if not customer:
             raise ValueError(f"Customer {customer_id} not found")
+        resolved_customer_id = customer["customer_id"]
         item = {
             "item_id": f"lib-{uuid.uuid4().hex[:8]}",
             "title": title.strip(),
@@ -369,7 +370,7 @@ class CustomerStore:
         fs = get_firestore_client()
         if fs is not None:
             try:
-                fs.collection("cspr_customers").document(customer_id).set(customer)
+                fs.collection("cspr_customers").document(resolved_customer_id).set(customer)
             except Exception as exc:
                 logger.warning("Firestore add_library_item warning: %s", exc)
         return item
@@ -380,20 +381,26 @@ class CustomerStore:
     def list_conversations(self, customer_id: Optional[str] = None) -> List[Dict[str, Any]]:
         convs = list(self._data["conversations"].values())
         if customer_id:
-            convs = [c for c in convs if c.get("customer_id") == customer_id]
+            resolved_id = customer_id
+            if customer_id == "cust-workspace-01" and customer_id not in self._data["customers"]:
+                fallback_cust = self.get_customer(customer_id)
+                if fallback_cust:
+                    resolved_id = fallback_cust["customer_id"]
+            convs = [c for c in convs if c.get("customer_id") == resolved_id]
         return sorted(convs, key=lambda c: c.get("updated_at", ""), reverse=True)
 
     def get_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         return self._data["conversations"].get(conversation_id)
 
     def create_conversation(self, customer_id: str, title: str = "Nova conversa") -> Dict[str, Any]:
-        if customer_id not in self._data["customers"]:
+        customer = self.get_customer(customer_id)
+        if not customer:
             raise ValueError(f"Customer {customer_id} does not exist")
+        resolved_customer_id = customer["customer_id"]
         conv_id = f"conv-{uuid.uuid4().hex[:8]}"
-        customer = self._data["customers"][customer_id]
         conv = {
             "conversation_id": conv_id,
-            "customer_id": customer_id,
+            "customer_id": resolved_customer_id,
             "customer_name": customer["name"],
             "title": title.strip() or "Nova conversa",
             "updated_at": time.strftime("%Y-%m-%d %H:%M"),
