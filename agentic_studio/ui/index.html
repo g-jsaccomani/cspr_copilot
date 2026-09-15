@@ -566,9 +566,23 @@
       }
     }
 
-    function openCorporateIdentityModal() {
+    async function openCorporateIdentityModal() {
       const modal = document.getElementById('corporateIdentityModal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) {
+        const originEl = document.getElementById('currentCloudRunOriginDisplay');
+        if (originEl) originEl.value = window.location.origin;
+        try {
+          const res = await fetch('/api/v1/auth/me', { headers: authHeaders() });
+          const data = await res.json();
+          const clientInput = document.getElementById('corpOAuthClientIdInput');
+          if (clientInput && data.google_oauth_client_id) {
+            clientInput.value = data.google_oauth_client_id;
+          }
+        } catch (err) {
+          console.debug('Could not fetch auth/me for modal:', err);
+        }
+        modal.classList.remove('hidden');
+      }
     }
 
     function closeCorporateIdentityModal() {
@@ -579,11 +593,18 @@
     async function saveCorporateIdentityFromModal() {
       const nameVal = (document.getElementById('corpNameInput').value || 'Joabson Saccomani').trim();
       const emailVal = (document.getElementById('corpEmailInput').value || 'jsaccomani@google.com').trim().toLowerCase();
+      const clientIdInput = document.getElementById('corpOAuthClientIdInput');
+      const clientIdVal = clientIdInput ? clientIdInput.value.trim() : undefined;
+
       if (!emailVal.endsWith('@google.com') && !emailVal.endsWith('@jsaccomani.altostrat.com')) {
         alert('Acesso restrito exclusivamente a contas @google.com');
         return;
       }
-      await saveUserPreferences({ name: nameVal });
+      const prefs = { name: nameVal };
+      if (clientIdVal !== undefined) {
+        prefs.google_oauth_client_id = clientIdVal;
+      }
+      await saveUserPreferences(prefs);
       applyUserProfileToUI({
         email: emailVal,
         name: nameVal,
@@ -591,6 +612,7 @@
       });
       closeCorporateIdentityModal();
       await loadPlatformStatus();
+      await initGoogleSignIn();
     }
 
     function renderCustomersList() {
@@ -1004,6 +1026,19 @@
           <input id="corpEmailInput" type="email" value="jsaccomani@google.com"
             class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
         </div>
+        <div class="pt-2 border-t border-white/10 space-y-2">
+          <div class="text-[11px] font-semibold text-blue-300">Configuração OAuth 2.0 (Google Sign-In / origin_mismatch)</div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">1. Origem JavaScript Autorizada (Adicione no GCP Console → Credentials)</label>
+            <input id="currentCloudRunOriginDisplay" type="text" readonly
+              class="w-full bg-[#0b0d12] border border-white/10 rounded-xl px-3 py-1.5 text-[11px] font-mono text-emerald-400 select-all" />
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">2. Google OAuth 2.0 Web Client ID (Opcional: sobrescrever Client ID)</label>
+            <input id="corpOAuthClientIdInput" type="text" placeholder="xxxxx.apps.googleusercontent.com"
+              class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-1.5 text-[11px] font-mono text-white focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
       </div>
       <div class="flex items-center justify-between pt-2">
         <button onclick="signOutOfGoogle()" class="px-3 py-1.5 text-xs rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-medium">
@@ -1014,7 +1049,7 @@
             Cancelar
           </button>
           <button onclick="saveCorporateIdentityFromModal()" class="px-4 py-1.5 text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
-            Salvar Rótulo Local
+            Salvar Rótulo & OAuth
           </button>
         </div>
       </div>

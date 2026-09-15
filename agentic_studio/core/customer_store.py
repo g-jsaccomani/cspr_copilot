@@ -226,6 +226,11 @@ class CustomerStore:
                 else existing.get("active_conversation_id", "")
             ),
             "preferred_model": user_data.get("preferred_model") or existing.get("preferred_model") or "gemini-3.8-flash",
+            "google_oauth_client_id": (
+                user_data.get("google_oauth_client_id")
+                if "google_oauth_client_id" in user_data
+                else existing.get("google_oauth_client_id", "")
+            ),
             "last_seen_at": time.time(),
         }
         self._data["user_sessions"][email] = record

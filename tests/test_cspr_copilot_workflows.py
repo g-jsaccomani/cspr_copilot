@@ -544,3 +544,24 @@ class TestScenario5CustomerDeletion:
         assert len(data["customers"]) >= 1
         assert data["customers"][0]["customer_id"] == "cust-workspace-01"
 
+    def test_auth_rejects_unauthorized_domain_with_403(self, client: TestClient) -> None:
+        resp = client.get(
+            "/api/v1/auth/me",
+            headers={"X-Goog-Authenticated-User-Email": "accounts.google.com:attacker@evil-domain.com"},
+        )
+        assert resp.status_code == 403
+        assert "Acesso bloqueado" in resp.json()["detail"]
+
+    def test_update_user_preferences_saves_custom_google_oauth_client_id(self, client: TestClient) -> None:
+        custom_client_id = "1234567890-customclientid.apps.googleusercontent.com"
+        resp = client.post(
+            "/api/v1/user/preferences",
+            json={"google_oauth_client_id": custom_client_id},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["google_oauth_client_id"] == custom_client_id
+
+        me_resp = client.get("/api/v1/auth/me")
+        assert me_resp.status_code == 200
+        assert me_resp.json()["google_oauth_client_id"] == custom_client_id

@@ -20,7 +20,7 @@ from agentic_studio.core.report_exporter import (
 
 app = FastAPI(
     title="CSPR Copilot & Agentic Studio",
-    version="3.3.1",
+    version="3.3.2",
     description="Customer-Agnostic AI Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
 )
 
@@ -77,6 +77,7 @@ class UserPreferencesRequest(BaseModel):
     preferred_model: Optional[str] = None
     name: Optional[str] = None
     picture: Optional[str] = None
+    google_oauth_client_id: Optional[str] = None
 
 
 @app.get("/healthz")
@@ -103,14 +104,19 @@ def serve_studio_ui() -> str:
 def get_current_user_identity(
     user: Dict[str, Any] = Depends(get_verified_google_user),
 ) -> Dict[str, Any]:
-    """Returns the verified @google.com user context."""
+    """Returns the verified @google.com user context and OAuth configuration."""
+    from agentic_studio.core.auth import ALLOWED_DOMAINS, ALLOWED_EMAILS
+    session = customer_store.get_user_session(user.get("email", "jsaccomani@google.com")) or {}
+    client_id = (
+        session.get("google_oauth_client_id")
+        or os.getenv("GOOGLE_OAUTH_CLIENT_ID", "32555940559.apps.googleusercontent.com")
+    )
     return {
         "authenticated": True,
         "user": user,
-        "google_oauth_client_id": os.getenv(
-            "GOOGLE_OAUTH_CLIENT_ID",
-            "32555940559.apps.googleusercontent.com",
-        ),
+        "google_oauth_client_id": client_id,
+        "allowed_domains": ALLOWED_DOMAINS,
+        "allowed_emails": ALLOWED_EMAILS,
     }
 
 
@@ -119,7 +125,7 @@ def update_user_preferences(
     req: UserPreferencesRequest,
     user: Dict[str, Any] = Depends(get_verified_google_user),
 ) -> Dict[str, Any]:
-    """Persists user session preferences (active customer, conversation, model) in Cloud Firestore."""
+    """Persists user session preferences (active customer, conversation, model, custom OAuth client ID) in Cloud Firestore."""
     updated_payload = dict(user)
     if req.active_customer_id is not None:
         updated_payload["active_customer_id"] = req.active_customer_id
@@ -131,8 +137,14 @@ def update_user_preferences(
         updated_payload["name"] = req.name
     if req.picture is not None:
         updated_payload["picture"] = req.picture
+    if req.google_oauth_client_id is not None:
+        updated_payload["google_oauth_client_id"] = req.google_oauth_client_id.strip()
     saved = customer_store.save_user_session(updated_payload)
-    return {"status": "saved", "session": saved}
+    return {
+        "status": "saved",
+        "session": saved,
+        "google_oauth_client_id": saved.get("google_oauth_client_id"),
+    }
 
 
 @app.get("/api/v1/status")
@@ -144,7 +156,7 @@ def get_platform_status(
     storage_health = customer_store.get_storage_health()
     return {
         "platform": "CSPR Copilot & Agentic Studio",
-        "version": "3.3.1",
+        "version": "3.3.2",
         "authenticated_user": user,
         "model_router": model_router.get_status(),
         "storage_health": storage_health,
