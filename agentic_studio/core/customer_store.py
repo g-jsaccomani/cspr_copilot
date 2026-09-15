@@ -106,6 +106,46 @@ class CustomerStore:
         except Exception as exc:
             logger.warning("Firestore hydration warning: %s", exc)
 
+    def get_storage_health(self) -> Dict[str, Any]:
+        """Evaluates multi-instance safety and detects Cloud Run (K_SERVICE) divergence risk when Firestore is absent."""
+        is_cloud_run = bool(os.environ.get("K_SERVICE"))
+        force_local = os.environ.get("FORCE_LOCAL_STORAGE", "").lower() in ("true", "1", "yes")
+        fs = None if force_local else get_firestore_client()
+        firestore_connected = fs is not None
+
+        if is_cloud_run and not firestore_connected and not force_local:
+            return {
+                "storage_mode": "ephemeral_local_fallback",
+                "multi_instance_safe": False,
+                "firestore_connected": False,
+                "cloud_run_detected": True,
+                "status": "degraded",
+                "warning": (
+                    "CRITICAL: K_SERVICE is set (Cloud Run multi-instance environment) "
+                    "but Cloud Firestore is not connected. CSPR_DATA_DIR (/tmp) will diverge "
+                    "across container instances!"
+                ),
+            }
+
+        if firestore_connected:
+            return {
+                "storage_mode": "cloud_firestore",
+                "multi_instance_safe": True,
+                "firestore_connected": True,
+                "cloud_run_detected": is_cloud_run,
+                "status": "healthy",
+                "warning": None,
+            }
+
+        return {
+            "storage_mode": "local_isolated",
+            "multi_instance_safe": True,
+            "firestore_connected": False,
+            "cloud_run_detected": is_cloud_run,
+            "status": "healthy",
+            "warning": None,
+        }
+
     def _ensure_default_workspace(self) -> None:
         if not self._data["customers"]:
             cid = "cust-workspace-01"

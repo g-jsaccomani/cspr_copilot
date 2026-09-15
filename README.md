@@ -140,6 +140,47 @@ Please review our [SECURITY.md](SECURITY.md) for vulnerability disclosure polici
 
 ---
 
+## CSPR Copilot & Agentic Studio (`agentic_studio/`)
+
+In addition to the CLI orchestrator, **cspr_copilot** includes an AI Copilot & Studio Web Platform (`agentic_studio/api/server.py`) powered by **Gemini 3.x (`gemini-3.8-flash` / `gemini-3.1-pro-preview`)** and **Google Cloud Firestore**.
+
+### Key Capabilities
+- **Multi-Customer Isolated Workspaces**: Strictly isolates GCP projects, Org IDs, conversations, and Customer Libraries (`cspr_customers`, `cspr_conversations`, `cspr_user_sessions`).
+- **Source-Attributed Copilot (`[fonte: <título do item>]`)**: Automatically injects customer library evidence into the Gemini 3.x system instruction and enforces explicit `[fonte: <título do item>]` citations in every response.
+- **Executive Report Export (`PDF / DOCX / CSV`)**: Generates executive CSPR reports modeled on the official Google Cloud PSO runbooks (`docs/CSPR_PSO_Execution_Runbook.docx`) and exports structured BigQuery findings (`cspr_finding` / `cspr_ci`) to CSV for tracker import.
+- **Multi-Instance Cloud Run Safety**: Monitors `K_SERVICE` and alerts if Cloud Run instances are running without Cloud Firestore connected (`storage_health`).
+- **6 Official CSPR Phases (`01`, `01.1`, `02`, `03`, `04`, `05`)**: Automated `bash -n` syntax validation and SHA-256 integrity checks across all 6 pipeline scripts.
+
+### REST API Endpoints (`agentic_studio/api/server.py`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/status` | Aggregates `phases` (6 CSPR scripts), `customers`, `conversations`, `model_router`, and `storage_health`. |
+| `GET` / `POST` | `/api/v1/customers` | Lists or creates isolated Customer Workspaces. |
+| `POST` | `/api/v1/customers/{id}/library` | Attaches scripts, logs, or structured findings to a Customer's isolated library. |
+| `POST` / `GET` | `/api/v1/customers/{id}/reports/export` | Exports Customer executive CSPR report (`format`: `"pdf"`, `"docx"`, `"csv"`). |
+| `GET` / `POST` | `/api/v1/conversations` | Lists (filtered by `?customer_id=...`) or creates Customer-scoped conversations. |
+| `POST` | `/api/v1/copilot/chat` | Executes Gemini 3.x Copilot chat with Customer Library context and `[fonte: <título>]` attribution. |
+| `POST` | `/api/v1/phases/{code}/dry-run` | Runs `bash -n` syntax check and SHA-256 digest verification for phase `01`, `01.1`, `02`, `03`, `04`, or `05`. |
+| `POST` | `/api/v1/user/preferences` | Persists user session preferences (`active_customer_id`, `preferred_model`, etc.). |
+| `GET` | `/api/v1/auth/me` | Returns authenticated `@google.com` corporate identity and session metadata. |
+| `POST` | `/api/v1/models/select` | Switches active Gemini 3.x model (`gemini-3.8-flash`, `gemini-3.1-pro-preview`, etc.). |
+| `POST` | `/api/v1/sync-upstream` | Synchronizes the 6 CSPR scripts with the upstream CSPR repository. |
+| `GET` | `/api/v1/cloud/inspect` | Performs live read-only GCP posture inspection (7 CSPR APIs, IAM policy, Service Account). |
+
+### Running Locally & Automated QA Suite
+```bash
+# Install dependencies
+python3 -m pip install -r requirements.txt
+
+# Run the FastAPI Studio server locally
+./run_studio.sh
+
+# Run the complete automated QA test suite (offline deterministic mode)
+FORCE_LOCAL_STORAGE=true CSPR_DATA_DIR=/tmp/cspr_test python3 -m pytest tests/ -v
+```
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -149,8 +190,8 @@ Please review our [SECURITY.md](SECURITY.md) for vulnerability disclosure polici
 
 ### Clone & Execution
 ```bash
-git clone git@github.com:g-jsaccomani/cspr.git
-cd cspr
+git clone git@github.com:g-jsaccomani/cspr_copilot.git
+cd cspr_copilot
 chmod +x pso_cspr_manager.sh scripts/*.sh
 ./pso_cspr_manager.sh
 ```
@@ -160,3 +201,4 @@ chmod +x pso_cspr_manager.sh scripts/*.sh
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+

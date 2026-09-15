@@ -5,17 +5,22 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from agentic_studio.core.auth import get_verified_google_user
 from agentic_studio.core.cspr_engine import CSPREngine
 from agentic_studio.core.customer_store import CustomerStore
 from agentic_studio.core.model_router import ModelRouter
+from agentic_studio.core.report_exporter import (
+    export_customer_report_csv,
+    export_customer_report_docx,
+    export_customer_report_pdf,
+)
 
 app = FastAPI(
     title="CSPR Copilot & Agentic Studio",
-    version="3.2.0",
+    version="3.3.0",
     description="Customer-Agnostic AI Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
 )
 
@@ -62,6 +67,10 @@ class CopilotChatRequest(BaseModel):
     phase_context: Optional[str] = None
 
 
+class ExportReportRequest(BaseModel):
+    format: str = "pdf"
+
+
 class UserPreferencesRequest(BaseModel):
     active_customer_id: Optional[str] = None
     active_conversation_id: Optional[str] = None
@@ -72,9 +81,14 @@ class UserPreferencesRequest(BaseModel):
 
 @app.get("/healthz")
 @app.get("/api/v1/health")
-def healthz() -> Dict[str, str]:
-    """Cloud Run liveness and readiness probe."""
-    return {"status": "healthy", "service": "cspr-copilot-studio"}
+def healthz() -> Dict[str, Any]:
+    """Cloud Run liveness and readiness probe with multi-instance storage health check."""
+    storage_health = customer_store.get_storage_health()
+    return {
+        "status": storage_health.get("status", "healthy"),
+        "service": "cspr-copilot-studio",
+        "storage_health": storage_health,
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -127,11 +141,13 @@ def get_platform_status(
 ) -> Dict[str, Any]:
     """Returns full Studio status including Gemini 3.x router, Customer workspaces, and CSPR phases."""
     customers = customer_store.list_customers()
+    storage_health = customer_store.get_storage_health()
     return {
         "platform": "CSPR Copilot & Agentic Studio",
-        "version": "3.2.0",
+        "version": "3.3.0",
         "authenticated_user": user,
         "model_router": model_router.get_status(),
+        "storage_health": storage_health,
         "phases": cspr_engine.get_phases_status(),
         "customers": customers,
         "conversations": customer_store.list_conversations(),
@@ -255,6 +271,54 @@ def inspect_live_cloud_posture(
     return inspect_cspr_project_posture(target_project)
 
 
+@app.post("/api/v1/customers/{customer_id}/reports/export")
+@app.get("/api/v1/customers/{customer_id}/reports/export")
+def export_customer_report(
+    customer_id: str,
+    format: Optional[str] = None,
+    req: Optional[ExportReportRequest] = None,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Response:
+    """Exports executive CSPR report for a Customer Workspace in PDF, DOCX, or CSV format."""
+    customer = customer_store.get_customer(customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail=f"Customer workspace {customer_id} not found.")
+
+    export_fmt = (req.format if req else format or "pdf").lower().strip()
+    if export_fmt not in ("pdf", "docx", "csv"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported export format '{export_fmt}'. Supported formats: pdf, docx, csv.",
+        )
+
+    phases = cspr_engine.get_phases_status()
+    conversations = customer_store.list_conversations(customer_id=customer_id)
+
+    safe_name = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in customer.get("name", customer_id))
+    filename = f"CSPR_Executive_Report_{safe_name}.{export_fmt}"
+
+    if export_fmt == "csv":
+        csv_text = export_customer_report_csv(customer, phases, conversations)
+        return Response(
+            content=csv_text,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    if export_fmt == "docx":
+        docx_bytes = export_customer_report_docx(customer, phases, conversations)
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    pdf_bytes = export_customer_report_pdf(customer, phases, conversations)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.post("/api/v1/copilot/chat")
 def copilot_chat(
     req: CopilotChatRequest,
@@ -291,6 +355,11 @@ Target Model: Gemini 3.x / Vertex AI Agent Builder
 Active User: {user.get('name', 'Joabson Saccomani')} ({user.get('email', 'jsaccomani@google.com')})
 Active Customer Workspace: {customer['name']} (GCP Project: {customer['gcp_project_id']} | Org ID: {customer['org_id']})
 CRITICAL ISOLATION RULE: Operate strictly inside Customer Workspace '{customer['name']}'. NEVER mix or reference data from any other customer.
+
+---
+
+# SOURCE ATTRIBUTION RULE (OBRIGATÓRIO)
+Sempre que sua resposta utilizar informações, scripts, logs ou achados presentes na seção CUSTOMER ISOLATED LIBRARY CONTEXT, você DEVE obrigatoriamente citar a fonte no formato exato: `[fonte: <título do item>]`.
 
 ---
 
@@ -339,6 +408,7 @@ Você possui domínio completo das ferramentas e arquitetura do CSPR Toolkit do 
         prompt=full_prompt,
         system_instruction=system_instruction,
         preferred_model=req.preferred_model,
+        library_items=customer.get("library", []),
     )
 
     updated_conv = customer_store.append_message(

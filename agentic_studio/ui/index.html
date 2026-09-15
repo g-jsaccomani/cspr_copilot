@@ -252,6 +252,23 @@
           class="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-blue-300 transition">
           Abrir Biblioteca Isolada
         </button>
+        <div class="flex items-center gap-1 ml-2">
+          <button onclick="exportCustomerReport('pdf')"
+            class="px-2 py-1 rounded-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[10px] text-blue-300 transition font-medium"
+            title="Exportar Relatório Executivo em PDF">
+            PDF
+          </button>
+          <button onclick="exportCustomerReport('docx')"
+            class="px-2 py-1 rounded-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-[10px] text-blue-300 transition font-medium"
+            title="Exportar Relatório Executivo em DOCX">
+            DOCX
+          </button>
+          <button onclick="exportCustomerReport('csv')"
+            class="px-2 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[10px] text-emerald-300 transition font-medium"
+            title="Exportar Achados Estruturados em CSV">
+            CSV
+          </button>
+        </div>
       </div>
 
       <div class="flex items-center gap-2">
@@ -850,6 +867,12 @@
       const res = await fetch(`/api/v1/phases/${code}/dry-run`, { method: 'POST', headers: authHeaders() });
       const data = await res.json();
       prefillAndSend(`Analise o resultado do Dry-Run da Fase ${code} (${data.script}): Sintaxe bash -n=${data.syntax_valid}, SHA256=${data.sha256}`);
+    }
+
+    async function exportCustomerReport(fmt) {
+      if (!activeCustomerId) return;
+      const url = `/api/v1/customers/${encodeURIComponent(activeCustomerId)}/reports/export?format=${encodeURIComponent(fmt)}`;
+      window.open(url, '_blank');
     }
 
     loadPlatformStatus();
