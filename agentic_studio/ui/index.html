@@ -20,6 +20,9 @@
       font-family: 'Google Sans', 'Inter', system-ui, -apple-system, sans-serif;
       overflow: hidden;
     }
+    .hidden {
+      display: none !important;
+    }
     /* Inspiring Google Cloud 4-Color Radial Atmospheric Fade into Obsidian Black */
     .gcp-canvas-glow {
       background:
@@ -479,7 +482,7 @@
         if (activeConversationId) {
           const exists = conversations.find(c => c.conversation_id === activeConversationId);
           if (exists) {
-            await loadConversationMessages(activeConversationId, exists.customer_id);
+            selectConversation(activeConversationId);
           }
         }
       } catch (err) {
