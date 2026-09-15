@@ -237,6 +237,24 @@ def dry_run_phase(
     return cspr_engine.dry_run_phase(phase_code)
 
 
+@app.get("/api/v1/cloud/inspect")
+def inspect_live_cloud_posture(
+    project_id: Optional[str] = None,
+    customer_id: Optional[str] = None,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Runs live read-only GCP inspection for CSPR readiness (7 APIs, IAM policy, Service Account)."""
+    from agentic_studio.core.cloud_inspector import inspect_cspr_project_posture
+    target_project = project_id
+    if not target_project and customer_id:
+        c = customer_store.get_customer(customer_id)
+        if c:
+            target_project = c.get("gcp_project_id")
+    if not target_project:
+        target_project = os.getenv("GOOGLE_CLOUD_PROJECT", "agentic-grc-cd06")
+    return inspect_cspr_project_posture(target_project)
+
+
 @app.post("/api/v1/copilot/chat")
 def copilot_chat(
     req: CopilotChatRequest,
