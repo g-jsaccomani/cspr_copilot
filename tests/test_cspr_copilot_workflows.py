@@ -490,3 +490,57 @@ def test_31_real_gemini_smoke_when_adc_available() -> None:
     )
     assert res["status"] in ("ok", "domain_fallback")
     assert len(res["response"]) > 10
+
+
+# ==============================================================================
+# SCENARIO 5: Customer Workspace Deletion & Cascade (Patch v3.3.1)
+# ==============================================================================
+
+
+class TestScenario5CustomerDeletion:
+    """Verifies DELETE /api/v1/customers/{customer_id} cascade deletion and auto-reseed."""
+
+    def test_delete_customer_cascades_conversations(self, client: TestClient) -> None:
+        cust = client.post(
+            "/api/v1/customers",
+            json={"name": "Ephemeral Client", "gcp_project_id": "ephem-01"},
+        ).json()
+        cid = cust["customer_id"]
+
+        conv1 = client.post(
+            "/api/v1/conversations",
+            json={"customer_id": cid, "title": "Conv 1"},
+        ).json()
+        conv2 = client.post(
+            "/api/v1/conversations",
+            json={"customer_id": cid, "title": "Conv 2"},
+        ).json()
+
+        resp = client.delete(f"/api/v1/customers/{cid}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "deleted"
+        assert data["deleted_customer_id"] == cid
+        assert set(data["deleted_conversation_ids"]) == {conv1["conversation_id"], conv2["conversation_id"]}
+
+        remaining_convs = client.get("/api/v1/conversations", params={"customer_id": cid}).json()
+        assert remaining_convs == []
+
+    def test_delete_unknown_customer_returns_404(self, client: TestClient) -> None:
+        resp = client.delete("/api/v1/customers/cust-does-not-exist-404")
+        assert resp.status_code == 404
+
+    def test_deleting_last_customer_reseeds_default_workspace(self, client: TestClient) -> None:
+        all_customers = client.get("/api/v1/customers").json()
+        # Delete all existing customers except the last one
+        for c in all_customers[:-1]:
+            client.delete(f"/api/v1/customers/{c['customer_id']}")
+
+        last_customer_id = all_customers[-1]["customer_id"]
+        resp = client.delete(f"/api/v1/customers/{last_customer_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["recreated_default_workspace"] is True
+        assert len(data["customers"]) >= 1
+        assert data["customers"][0]["customer_id"] == "cust-workspace-01"
+

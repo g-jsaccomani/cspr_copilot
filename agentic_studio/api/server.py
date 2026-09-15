@@ -20,7 +20,7 @@ from agentic_studio.core.report_exporter import (
 
 app = FastAPI(
     title="CSPR Copilot & Agentic Studio",
-    version="3.3.0",
+    version="3.3.1",
     description="Customer-Agnostic AI Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
 )
 
@@ -144,7 +144,7 @@ def get_platform_status(
     storage_health = customer_store.get_storage_health()
     return {
         "platform": "CSPR Copilot & Agentic Studio",
-        "version": "3.3.0",
+        "version": "3.3.1",
         "authenticated_user": user,
         "model_router": model_router.get_status(),
         "storage_health": storage_health,
@@ -176,6 +176,24 @@ def create_customer(
         org_id=req.org_id or "",
         description=req.description or "",
     )
+
+
+@app.delete("/api/v1/customers/{customer_id}")
+def delete_customer(
+    customer_id: str,
+    user: Dict[str, Any] = Depends(get_verified_google_user),
+) -> Dict[str, Any]:
+    """Deletes a Customer Workspace, cascades all conversations, and reseeds if last."""
+    try:
+        result = customer_store.delete_customer(customer_id)
+        return {
+            "status": "deleted",
+            **result,
+            "customers": customer_store.list_customers(),
+            "conversations": customer_store.list_conversations(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/customers/{customer_id}/library")

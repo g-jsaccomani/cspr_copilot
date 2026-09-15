@@ -261,7 +261,57 @@ class CustomerStore:
 
     def get_customer(self, customer_id: str) -> Optional[Dict[str, Any]]:
         c = self._data["customers"].get(customer_id)
+        if not c and customer_id == "cust-workspace-01" and self._data["customers"]:
+            first_id = next(iter(self._data["customers"].keys()))
+            c = self._data["customers"][first_id]
         return self._normalize_customer(c, customer_id) if c else None
+
+    def delete_customer(self, customer_id: str) -> Dict[str, Any]:
+        """Deletes a Customer workspace, cascades all its conversations, clears user sessions, and reseeds if last."""
+        if customer_id not in self._data["customers"]:
+            raise ValueError(f"Customer {customer_id} not found")
+
+        del self._data["customers"][customer_id]
+
+        # Cascade delete all conversations belonging to this customer
+        deleted_conversation_ids: List[str] = []
+        for conv_id in list(self._data["conversations"].keys()):
+            conv = self._data["conversations"][conv_id]
+            if conv.get("customer_id") == customer_id:
+                del self._data["conversations"][conv_id]
+                deleted_conversation_ids.append(conv_id)
+
+        # Clear active_customer_id / active_conversation_id from any user sessions pointing to the deleted customer
+        for email, session in self._data["user_sessions"].items():
+            if session.get("active_customer_id") == customer_id:
+                session["active_customer_id"] = ""
+                session["active_conversation_id"] = ""
+
+        # Sync deletion to Cloud Firestore if enabled
+        fs = get_firestore_client()
+        if fs is not None:
+            try:
+                fs.collection("cspr_customers").document(customer_id).delete()
+                for conv_id in deleted_conversation_ids:
+                    fs.collection("cspr_conversations").document(conv_id).delete()
+                for email, session in self._data["user_sessions"].items():
+                    fs.collection("cspr_user_sessions").document(email).set(session, merge=True)
+            except Exception as exc:
+                logger.warning("Firestore delete_customer warning: %s", exc)
+
+        # Ensure Studio never remains with zero workspaces
+        recreated_default = False
+        if not self._data["customers"]:
+            self._ensure_default_workspace()
+            recreated_default = True
+        else:
+            self._save()
+
+        return {
+            "deleted_customer_id": customer_id,
+            "deleted_conversation_ids": deleted_conversation_ids,
+            "recreated_default_workspace": recreated_default,
+        }
 
     def create_customer(
         self,

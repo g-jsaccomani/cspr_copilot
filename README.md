@@ -156,6 +156,7 @@ In addition to the CLI orchestrator, **cspr_copilot** includes an AI Copilot & S
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/status` | Aggregates `phases` (6 CSPR scripts), `customers`, `conversations`, `model_router`, and `storage_health`. |
 | `GET` / `POST` | `/api/v1/customers` | Lists or creates isolated Customer Workspaces. |
+| `DELETE` | `/api/v1/customers/{id}` | Deletes a Customer Workspace, cascades all its conversations, and reseeds if last. |
 | `POST` | `/api/v1/customers/{id}/library` | Attaches scripts, logs, or structured findings to a Customer's isolated library. |
 | `POST` / `GET` | `/api/v1/customers/{id}/reports/export` | Exports Customer executive CSPR report (`format`: `"pdf"`, `"docx"`, `"csv"`). |
 | `GET` / `POST` | `/api/v1/conversations` | Lists (filtered by `?customer_id=...`) or creates Customer-scoped conversations. |
@@ -166,6 +167,19 @@ In addition to the CLI orchestrator, **cspr_copilot** includes an AI Copilot & S
 | `POST` | `/api/v1/models/select` | Switches active Gemini 3.x model (`gemini-3.8-flash`, `gemini-3.1-pro-preview`, etc.). |
 | `POST` | `/api/v1/sync-upstream` | Synchronizes the 6 CSPR scripts with the upstream CSPR repository. |
 | `GET` | `/api/v1/cloud/inspect` | Performs live read-only GCP posture inspection (7 CSPR APIs, IAM policy, Service Account). |
+
+### Cloud Run Deployment & Stale Revision Runbook
+When deploying via `gcloud run deploy --source=.`, Cloud Build or traffic pinning may occasionally leave an older revision serving traffic (which can cause a 404 on newly added endpoints or stale UI bundles). To diagnose and remediate:
+```bash
+# 1. Inspect active Cloud Run revisions and traffic allocation
+gcloud run revisions list --service=cspr-copilot-studio --region=us-central1 --project=agentic-grc-cd06
+
+# 2. Force 100% traffic to the latest revision (included automatically in ./deploy_cloud_run.sh)
+gcloud run services update-traffic cspr-copilot-studio --to-latest --region=us-central1 --project=agentic-grc-cd06
+
+# 3. Verify live version and storage health
+curl -sL "https://cspr-copilot-studio-ekpqijg7oq-uc.a.run.app/api/v1/status" | python3 -m json.tool | head -n 20
+```
 
 ### Running Locally & Automated QA Suite
 ```bash

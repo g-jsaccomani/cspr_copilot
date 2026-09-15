@@ -208,7 +208,7 @@
     <!-- Bottom User Identity & Active Model Footer -->
     <div class="p-3.5 border-t border-white/10 bg-[#0f1117] space-y-2">
       <div class="flex items-center justify-between gap-2">
-        <div onclick="openCorporateIdentityModal()" title="Clique para ver ou editar sua sessão corporativa @google.com persistida no Firestore"
+        <div onclick="openCorporateIdentityModal()" title="Gerenciar sessão ou rótulo local"
           class="flex items-center gap-2.5 min-w-0 cursor-pointer hover:bg-white/5 p-1 rounded-xl transition">
           <!-- Google Cloud Avatar Circle -->
           <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-emerald-500 to-amber-500 p-[1.5px] shrink-0 overflow-hidden">
@@ -227,10 +227,11 @@
           3.8-flash
         </span>
       </div>
+      <div id="googleSignInContainer" class="pt-1 flex justify-center"></div>
       <div class="flex items-center justify-between px-1">
-        <span id="authMethodBadge" class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Autenticado Automaticamente (@google.com)
+        <span id="authMethodBadge" class="text-[10px] text-amber-400 flex items-center gap-1 font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          Sessão de desenvolvimento (não verificada)
         </span>
         <button onclick="openCorporateIdentityModal()" class="text-[10px] text-blue-400 hover:text-blue-300 underline">
           Perfil / Sessão
@@ -401,6 +402,7 @@
       const name = user.name || 'Joabson Saccomani';
       const picture = user.picture || '';
       const method = user.auth_method || 'direct_google_session';
+      const isVerified = (method === 'google_sso_jwt' || method === 'google_cloud_iap');
 
       document.getElementById('userDisplayName').innerText = name;
       document.getElementById('userEmailAddress').innerText = email;
@@ -419,11 +421,67 @@
       }
 
       const badgeEl = document.getElementById('authMethodBadge');
-      if (method === 'google_sso_jwt' || method === 'google_cloud_iap') {
-        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Google Chrome SSO Verificado`;
+      if (isVerified) {
+        badgeEl.className = 'text-[10px] text-emerald-400 flex items-center gap-1 font-medium';
+        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Identidade Google verificada`;
       } else {
-        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Sessão Direta @google.com`;
+        badgeEl.className = 'text-[10px] text-amber-400 flex items-center gap-1 font-medium';
+        badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Sessão de desenvolvimento (não verificada)`;
       }
+
+      const signInContainer = document.getElementById('googleSignInContainer');
+      if (signInContainer) {
+        signInContainer.classList.toggle('hidden', isVerified);
+      }
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      googleIdToken = response.credential;
+      localStorage.setItem('google_id_token', googleIdToken);
+      const claims = parseJwt(googleIdToken);
+      if (claims && claims.email) {
+        applyUserProfileToUI({
+          email: claims.email,
+          name: claims.name,
+          picture: claims.picture,
+          auth_method: 'google_sso_jwt'
+        });
+      }
+      await loadPlatformStatus();
+    }
+
+    async function initGoogleSignIn() {
+      try {
+        const res = await fetch('/api/v1/auth/me', { headers: authHeaders() });
+        const data = await res.json();
+        const clientId = data.google_oauth_client_id;
+        if (clientId && window.google && window.google.accounts && window.google.accounts.id) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse
+          });
+          const container = document.getElementById('googleSignInContainer');
+          if (container) {
+            window.google.accounts.id.renderButton(container, {
+              theme: 'filled_black',
+              size: 'small',
+              shape: 'pill',
+              text: 'signin_with',
+              width: 220
+            });
+          }
+        }
+      } catch (err) {
+        console.debug('Google Sign-In initialization skipped:', err);
+      }
+    }
+
+    function signOutOfGoogle() {
+      googleIdToken = null;
+      localStorage.removeItem('google_id_token');
+      closeCorporateIdentityModal();
+      loadPlatformStatus();
     }
 
     function authHeaders() {
@@ -486,7 +544,8 @@
         conversations = data.conversations || [];
         phases = data.phases || [];
 
-        if (!activeCustomerId && customers.length > 0) {
+        // Always validate activeCustomerId exists in current customers list (prevents 404 on copilot/chat)
+        if ((!activeCustomerId || !customers.some(c => c.customer_id === activeCustomerId)) && customers.length > 0) {
           activeCustomerId = customers[0].customer_id;
         }
 
@@ -540,22 +599,64 @@
       customers.forEach(c => {
         const isSelected = c.customer_id === activeCustomerId;
         const custName = c.name || c.customer_name || c.customer_id;
+        const safeCustName = custName.replace(/'/g, "\\'");
         const libCount = (c.library || []).length;
         container.innerHTML += `
-          <button onclick="selectCustomer('${c.customer_id}')"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition ${
-              isSelected ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 font-medium' : 'text-slate-300 hover:bg-white/5'
-            }">
-            <div class="flex items-center gap-2.5 truncate">
+          <div class="group w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition ${
+            isSelected ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 font-medium' : 'text-slate-300 hover:bg-white/5'
+          }">
+            <button onclick="selectCustomer('${c.customer_id}')" class="flex-1 flex items-center gap-2.5 truncate text-left">
               <svg class="w-4 h-4 shrink-0 ${isSelected ? 'text-blue-400' : 'text-slate-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
               </svg>
               <span class="truncate">${custName}</span>
+            </button>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">${libCount}</span>
+              <button onclick="deleteCustomer(event, '${c.customer_id}', '${safeCustName}')"
+                title="Excluir Customer Workspace e suas conversas"
+                class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
             </div>
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 shrink-0">${libCount}</span>
-          </button>
+          </div>
         `;
       });
+    }
+
+    async function deleteCustomer(event, customerId, customerName) {
+      event.stopPropagation();
+      if (!confirm(`Tem certeza que deseja excluir o Customer "${customerName}"? Todas as conversas vinculadas a este Customer também serão apagadas.`)) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api/v1/customers/${encodeURIComponent(customerId)}`, {
+          method: 'DELETE',
+          headers: authHeaders()
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || 'Falha ao excluir Customer');
+          return;
+        }
+        const data = await res.json();
+        customers = data.customers || customers.filter(c => c.customer_id !== customerId);
+        conversations = data.conversations || conversations.filter(c => c.customer_id !== customerId);
+
+        if (activeCustomerId === customerId) {
+          activeCustomerId = customers.length > 0 ? customers[0].customer_id : null;
+          activeConversationId = null;
+          await saveUserPreferences({ active_customer_id: activeCustomerId || '', active_conversation_id: '' });
+        }
+        renderCustomersList();
+        renderConversationsList();
+        updateActiveCustomerHeader();
+        renderActiveConversationStream();
+      } catch (err) {
+        console.error('Erro ao excluir Customer:', err);
+      }
     }
 
     function selectCustomer(customerId) {
@@ -876,21 +977,25 @@
     }
 
     loadPlatformStatus();
+    window.addEventListener('load', initGoogleSignIn);
   </script>
 
-  <!-- Corporate Identity Modal (@google.com) -->
+  <!-- Dev Session & Identity Modal (@google.com) -->
   <div id="corporateIdentityModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-[#1a1d26] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-sm font-semibold text-white">Sessão Corporativa @google.com</h3>
-          <p class="text-xs text-slate-400">Persistida automaticamente no Google Cloud Firestore</p>
+          <h3 class="text-sm font-semibold text-white">Rótulo de Sessão de Desenvolvimento</h3>
+          <p class="text-xs text-slate-400">Rótulo local não verificado (para ambiente de desenvolvimento)</p>
         </div>
         <button onclick="closeCorporateIdentityModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
       </div>
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 leading-relaxed">
+        <strong>Aviso de Identidade:</strong> Este modal define apenas um rótulo de desenvolvimento local (não verificado). Para autenticar com sua conta Google verificada (badge verde), utilize o botão <strong>Sign in with Google</strong> no rodapé da sidebar.
+      </div>
       <div class="space-y-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nome Completo</label>
+          <label class="block text-xs text-slate-400 mb-1">Nome de Exibição (Local Dev)</label>
           <input id="corpNameInput" type="text" value="Joabson Saccomani"
             class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
         </div>
@@ -900,13 +1005,18 @@
             class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
         </div>
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeCorporateIdentityModal()" class="px-3 py-1.5 text-xs rounded-xl bg-white/5 hover:bg-white/10 text-slate-300">
-          Cancelar
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="signOutOfGoogle()" class="px-3 py-1.5 text-xs rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-medium">
+          Sair da conta Google
         </button>
-        <button onclick="saveCorporateIdentityFromModal()" class="px-4 py-1.5 text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
-          Salvar no Cloud Firestore
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeCorporateIdentityModal()" class="px-3 py-1.5 text-xs rounded-xl bg-white/5 hover:bg-white/10 text-slate-300">
+            Cancelar
+          </button>
+          <button onclick="saveCorporateIdentityFromModal()" class="px-4 py-1.5 text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
+            Salvar Rótulo Local
+          </button>
+        </div>
       </div>
     </div>
   </div>
