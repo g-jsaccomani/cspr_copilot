@@ -58,6 +58,20 @@ class CustomerStore:
         except Exception as exc:
             logger.debug("Local cache write warning: %s", exc)
 
+    def _normalize_customer(self, d: Dict[str, Any], fallback_id: str = "") -> Dict[str, Any]:
+        cid = d.get("customer_id") or fallback_id or f"cust-{uuid.uuid4().hex[:8]}"
+        name = d.get("name") or d.get("customer_name") or cid
+        proj_ids = d.get("gcp_project_ids") or []
+        gcp_proj = d.get("gcp_project_id") or (proj_ids[0] if proj_ids else "agentic-grc-cd06")
+        org_id = d.get("org_id") or d.get("gcp_org_id") or "938078169010"
+        d["customer_id"] = cid
+        d["name"] = name
+        d["customer_name"] = name
+        d["gcp_project_id"] = gcp_proj
+        d["org_id"] = org_id
+        d.setdefault("library", [])
+        return d
+
     def _sync_from_firestore_on_startup(self) -> None:
         """Hydrates local memory/disk cache from Google Cloud Firestore on Cloud Run container startup."""
         fs = get_firestore_client()
@@ -65,10 +79,10 @@ class CustomerStore:
             return
         try:
             for doc in fs.collection("cspr_customers").stream():
-                d = doc.to_dict()
-                cid = d.get("customer_id") or doc.id
-                d["customer_id"] = cid
-                self._data["customers"][cid] = d
+                d = self._normalize_customer(doc.to_dict(), doc.id)
+                self._data["customers"][d["customer_id"]] = d
+                # Also write normalized schema back to Firestore if needed
+                fs.collection("cspr_customers").document(d["customer_id"]).set(d, merge=True)
 
             for doc in fs.collection("cspr_conversations").stream():
                 d = doc.to_dict()
@@ -203,10 +217,11 @@ class CustomerStore:
     # Customer CRUD (Cloud Firestore + Local Cache)
     # ------------------------------------------------------------------
     def list_customers(self) -> List[Dict[str, Any]]:
-        return list(self._data["customers"].values())
+        return [self._normalize_customer(c) for c in self._data["customers"].values()]
 
     def get_customer(self, customer_id: str) -> Optional[Dict[str, Any]]:
-        return self._data["customers"].get(customer_id)
+        c = self._data["customers"].get(customer_id)
+        return self._normalize_customer(c, customer_id) if c else None
 
     def create_customer(
         self,

@@ -340,9 +340,13 @@ class CSPRWorkspaceStore:
         proj_list = gcp_project_ids or []
         record = {
             "customer_id": cid,
+            "name": customer_name,
             "customer_name": customer_name,
-            "gcp_org_id": gcp_org_id,
+            "gcp_project_id": proj_list[0] if proj_list else "agentic-grc-cd06",
+            "org_id": gcp_org_id or "938078169010",
+            "gcp_org_id": gcp_org_id or "938078169010",
             "gcp_project_ids": proj_list,
+            "library": [],
             "created_by": created_by,
             "created_at": now,
         }

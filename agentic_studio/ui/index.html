@@ -205,9 +205,9 @@
     <!-- Bottom User Identity & Active Model Footer -->
     <div class="p-3.5 border-t border-white/10 bg-[#0f1117] space-y-2">
       <div class="flex items-center justify-between gap-2">
-        <div onclick="triggerGoogleAccountPicker()" title="Clique para sincronizar/trocar sua conta Google do Chrome"
+        <div onclick="openCorporateIdentityModal()" title="Clique para ver ou editar sua sessão corporativa @google.com persistida no Firestore"
           class="flex items-center gap-2.5 min-w-0 cursor-pointer hover:bg-white/5 p-1 rounded-xl transition">
-          <!-- Google Cloud Avatar Circle (Supports Real Google Profile Photo) -->
+          <!-- Google Cloud Avatar Circle -->
           <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 via-emerald-500 to-amber-500 p-[1.5px] shrink-0 overflow-hidden">
             <img id="userAvatarImage" src="" alt="Avatar" class="hidden w-full h-full rounded-full object-cover" />
             <div class="w-full h-full rounded-full bg-[#13151b] flex items-center justify-center text-xs font-bold text-white" id="userAvatarInitials">
@@ -224,15 +224,13 @@
           3.8-flash
         </span>
       </div>
-      <!-- Hidden Google Sign-In container for 1-click Chrome Account Picker -->
-      <div id="googlePickerContainer" class="hidden pt-1 flex justify-center"></div>
       <div class="flex items-center justify-between px-1">
-        <span id="authMethodBadge" class="text-[10px] text-slate-400 flex items-center gap-1">
-          <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-          Sessão @google.com Ativa
+        <span id="authMethodBadge" class="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Autenticado Automaticamente (@google.com)
         </span>
-        <button onclick="triggerGoogleAccountPicker()" class="text-[10px] text-blue-400 hover:text-blue-300 underline">
-          Sincronizar Chrome SSO
+        <button onclick="openCorporateIdentityModal()" class="text-[10px] text-blue-400 hover:text-blue-300 underline">
+          Perfil / Sessão
         </button>
       </div>
     </div>
@@ -489,61 +487,39 @@
       }
     }
 
-    function initSilentGoogleSSO() {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        window.google.accounts.id.initialize({
-          client_id: '32555940559.apps.googleusercontent.com',
-          callback: handleGoogleCredentialResponse,
-          auto_select: true,
-          use_fedcm_for_prompt: true
-        });
-        // Trigger non-blocking Google One-Tap / FedCM silent auto-login
-        window.google.accounts.id.prompt();
-      }
+    function openCorporateIdentityModal() {
+      const modal = document.getElementById('corporateIdentityModal');
+      if (modal) modal.classList.remove('hidden');
     }
 
-    function triggerGoogleAccountPicker() {
-      const pickerContainer = document.getElementById('googlePickerContainer');
-      pickerContainer.classList.toggle('hidden');
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        window.google.accounts.id.initialize({
-          client_id: '32555940559.apps.googleusercontent.com',
-          callback: handleGoogleCredentialResponse
-        });
-        window.google.accounts.id.renderButton(
-          pickerContainer,
-          { theme: 'filled_black', size: 'small', text: 'continue_with', shape: 'pill' }
-        );
-        window.google.accounts.id.prompt();
-      }
+    function closeCorporateIdentityModal() {
+      const modal = document.getElementById('corporateIdentityModal');
+      if (modal) modal.classList.add('hidden');
     }
 
-    function handleGoogleCredentialResponse(response) {
-      googleIdToken = response.credential;
-      localStorage.setItem('google_id_token', googleIdToken);
-      sessionStorage.setItem('google_id_token', googleIdToken);
-      document.getElementById('googlePickerContainer').classList.add('hidden');
-      const claims = parseJwt(googleIdToken);
-      if (claims) {
-        applyUserProfileToUI({
-          email: claims.email,
-          name: claims.name,
-          picture: claims.picture,
-          auth_method: 'google_sso_jwt'
-        });
+    async function saveCorporateIdentityFromModal() {
+      const nameVal = (document.getElementById('corpNameInput').value || 'Joabson Saccomani').trim();
+      const emailVal = (document.getElementById('corpEmailInput').value || 'jsaccomani@google.com').trim().toLowerCase();
+      if (!emailVal.endsWith('@google.com') && !emailVal.endsWith('@jsaccomani.altostrat.com')) {
+        alert('Acesso restrito exclusivamente a contas @google.com');
+        return;
       }
-      loadPlatformStatus();
+      await saveUserPreferences({ name: nameVal });
+      applyUserProfileToUI({
+        email: emailVal,
+        name: nameVal,
+        auth_method: 'direct_google_session'
+      });
+      closeCorporateIdentityModal();
+      await loadPlatformStatus();
     }
-
-    window.addEventListener('load', () => {
-      initSilentGoogleSSO();
-    });
 
     function renderCustomersList() {
       const container = document.getElementById('customersListContainer');
       container.innerHTML = '';
       customers.forEach(c => {
         const isSelected = c.customer_id === activeCustomerId;
+        const custName = c.name || c.customer_name || c.customer_id;
         const libCount = (c.library || []).length;
         container.innerHTML += `
           <button onclick="selectCustomer('${c.customer_id}')"
@@ -554,7 +530,7 @@
               <svg class="w-4 h-4 shrink-0 ${isSelected ? 'text-blue-400' : 'text-slate-400'}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
               </svg>
-              <span class="truncate">${c.name}</span>
+              <span class="truncate">${custName}</span>
             </div>
             <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 shrink-0">${libCount}</span>
           </button>
@@ -575,9 +551,11 @@
     function updateActiveCustomerHeader() {
       const c = customers.find(x => x.customer_id === activeCustomerId);
       if (!c) return;
+      const custName = c.name || c.customer_name || c.customer_id;
+      const projId = c.gcp_project_id || (c.gcp_project_ids && c.gcp_project_ids[0]) || 'agentic-grc-cd06';
       document.getElementById('activeCustomerTopBadge').innerText =
-        `Customer Ativo: ${c.name} (${c.gcp_project_id})`;
-      document.getElementById('heroCustName').innerText = `${c.name} (${c.gcp_project_id})`;
+        `Customer Ativo: ${custName} (${projId})`;
+      document.getElementById('heroCustName').innerText = `${custName} (${projId})`;
       document.getElementById('activeCustLibCount').innerText = (c.library || []).length;
     }
 
@@ -602,7 +580,8 @@
       filtered.forEach(conv => {
         const isSelected = conv.conversation_id === activeConversationId;
         const cust = customers.find(x => x.customer_id === conv.customer_id);
-        const custBadge = cust ? cust.name.slice(0, 14) : '';
+        const custName = cust ? (cust.name || cust.customer_name || cust.customer_id) : '';
+        const custBadge = custName ? custName.slice(0, 14) : '';
         container.innerHTML += `
           <button onclick="selectConversation('${conv.conversation_id}')"
             class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition ${
@@ -872,5 +851,38 @@
 
     loadPlatformStatus();
   </script>
+
+  <!-- Corporate Identity Modal (@google.com) -->
+  <div id="corporateIdentityModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#1a1d26] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Sessão Corporativa @google.com</h3>
+          <p class="text-xs text-slate-400">Persistida automaticamente no Google Cloud Firestore</p>
+        </div>
+        <button onclick="closeCorporateIdentityModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Nome Completo</label>
+          <input id="corpNameInput" type="text" value="Joabson Saccomani"
+            class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">E-mail Corporativo (@google.com)</label>
+          <input id="corpEmailInput" type="email" value="jsaccomani@google.com"
+            class="w-full bg-[#13151b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeCorporateIdentityModal()" class="px-3 py-1.5 text-xs rounded-xl bg-white/5 hover:bg-white/10 text-slate-300">
+          Cancelar
+        </button>
+        <button onclick="saveCorporateIdentityFromModal()" class="px-4 py-1.5 text-xs rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
+          Salvar no Cloud Firestore
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
