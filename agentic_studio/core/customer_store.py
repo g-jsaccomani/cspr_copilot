@@ -266,9 +266,6 @@ class CustomerStore:
 
     def get_customer(self, customer_id: str) -> Optional[Dict[str, Any]]:
         c = self._data["customers"].get(customer_id)
-        if not c and customer_id == "cust-workspace-01" and self._data["customers"]:
-            first_id = next(iter(self._data["customers"].keys()))
-            c = self._data["customers"][first_id]
         return self._normalize_customer(c, customer_id) if c else None
 
     def delete_customer(self, customer_id: str) -> Dict[str, Any]:
@@ -381,12 +378,7 @@ class CustomerStore:
     def list_conversations(self, customer_id: Optional[str] = None) -> List[Dict[str, Any]]:
         convs = list(self._data["conversations"].values())
         if customer_id:
-            resolved_id = customer_id
-            if customer_id == "cust-workspace-01" and customer_id not in self._data["customers"]:
-                fallback_cust = self.get_customer(customer_id)
-                if fallback_cust:
-                    resolved_id = fallback_cust["customer_id"]
-            convs = [c for c in convs if c.get("customer_id") == resolved_id]
+            convs = [c for c in convs if c.get("customer_id") == customer_id]
         return sorted(convs, key=lambda c: c.get("updated_at", ""), reverse=True)
 
     def get_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
@@ -448,3 +440,14 @@ class CustomerStore:
             except Exception as exc:
                 logger.warning("Firestore append_message warning: %s", exc)
         return conv
+
+
+_singleton_instance: Optional["CustomerStore"] = None
+
+
+def get_customer_store() -> "CustomerStore":
+    global _singleton_instance
+    if _singleton_instance is None:
+        _singleton_instance = CustomerStore()
+    return _singleton_instance
+

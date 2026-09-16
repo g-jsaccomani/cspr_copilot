@@ -27,7 +27,7 @@ os.environ.setdefault("CSPR_TEST_FORCE_OFFLINE", "true")
 
 from agentic_studio.api.server import app, customer_store, model_router
 from agentic_studio.core.cspr_engine import CSPR_PHASES, CSPREngine
-from agentic_studio.core.customer_store import CustomerStore
+from agentic_studio.core.customer_store import CustomerStore, get_customer_store
 from agentic_studio.core.model_router import ModelRouter
 
 
@@ -39,6 +39,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     test_storage = tmp_path / "test_workspaces.json"
     isolated_store = CustomerStore(storage_path=test_storage)
     monkeypatch.setattr("agentic_studio.api.server.customer_store", isolated_store)
+    monkeypatch.setattr("agentic_studio.core.customer_store._singleton_instance", isolated_store)
     return TestClient(app)
 
 
@@ -565,3 +566,51 @@ class TestScenario5CustomerDeletion:
         me_resp = client.get("/api/v1/auth/me")
         assert me_resp.status_code == 200
         assert me_resp.json()["google_oauth_client_id"] == custom_client_id
+
+
+# ==============================================================================
+# PATCH v3.3.3 REGRESSION: Shared CustomerStore Singleton Across Auth & API (Test 32)
+# ==============================================================================
+
+
+def test_32_auth_session_hydration_shares_the_same_singleton_as_api_endpoints(
+    client: TestClient,
+) -> None:
+    """Verifies Patch v3.3.3: get_verified_google_user() in auth.py shares the exact same
+    CustomerStore singleton instance as API endpoints in server.py, preventing active_customer_id
+    from reverting to 'cust-workspace-01' after selecting a new customer or deleting the default workspace.
+    """
+    import agentic_studio.api.server as srv
+
+    assert get_customer_store() is srv.customer_store
+
+    new_cust = client.post(
+        "/api/v1/customers",
+        json={
+            "name": "Itaú Unibanco CSPR",
+            "gcp_project_id": "itau-cspr-prod-01",
+            "org_id": "554433221100",
+        },
+    ).json()
+    new_cid = new_cust["customer_id"]
+
+    # Select the newly created customer as active in user preferences
+    pref_resp = client.post(
+        "/api/v1/user/preferences",
+        json={"active_customer_id": new_cid},
+    )
+    assert pref_resp.status_code == 200
+    assert pref_resp.json()["session"]["active_customer_id"] == new_cid
+
+    # Subsequent authenticated requests must hydrate the exact same active_customer_id (not 'cust-workspace-01')
+    me_resp = client.get("/api/v1/auth/me")
+    assert me_resp.status_code == 200
+    assert me_resp.json()["user"]["active_customer_id"] == new_cid
+
+    # Even if 'cust-workspace-01' is deleted, active_customer_id remains the selected customer
+    client.delete("/api/v1/customers/cust-workspace-01")
+    status_resp = client.get("/api/v1/status")
+    assert status_resp.status_code == 200
+    assert status_resp.json()["authenticated_user"]["active_customer_id"] == new_cid
+    assert client.get("/api/v1/customers").json()[0]["customer_id"] == new_cid
+

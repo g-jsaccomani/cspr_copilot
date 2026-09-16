@@ -203,11 +203,11 @@ def get_verified_google_user(
         }
 
     # 5. Hydrate & Persist Session State in Cloud Firestore + SQLite
-    from agentic_studio.core.customer_store import CustomerStore
-    c_store = CustomerStore()
+    from agentic_studio.core.customer_store import get_customer_store
+    c_store = get_customer_store()
     persisted = c_store.save_user_session(resolved_user)
     store.save_user_session(resolved_user)
-    resolved_user["active_customer_id"] = persisted.get("active_customer_id", "cust-workspace-01")
+    resolved_user["active_customer_id"] = persisted.get("active_customer_id", "")
     resolved_user["active_conversation_id"] = persisted.get("active_conversation_id", "")
     resolved_user["preferred_model"] = persisted.get("preferred_model", "gemini-3.8-flash")
     if persisted.get("picture") and not resolved_user.get("picture"):

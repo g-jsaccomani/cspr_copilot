@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from agentic_studio.core.auth import get_verified_google_user
 from agentic_studio.core.cspr_engine import CSPREngine
-from agentic_studio.core.customer_store import CustomerStore
+from agentic_studio.core.customer_store import CustomerStore, get_customer_store
 from agentic_studio.core.model_router import ModelRouter
 from agentic_studio.core.report_exporter import (
     export_customer_report_csv,
@@ -20,7 +20,7 @@ from agentic_studio.core.report_exporter import (
 
 app = FastAPI(
     title="CSPR Copilot & Agentic Studio",
-    version="3.3.2",
+    version="3.3.3",
     description="Customer-Agnostic AI Cloud Security Posture Review Platform powered by Gemini 3.x (@google.com Exclusive)",
 )
 
@@ -33,7 +33,7 @@ app.add_middleware(
 
 model_router = ModelRouter()
 cspr_engine = CSPREngine()
-customer_store = CustomerStore()
+customer_store = get_customer_store()
 UI_HTML_PATH = Path(__file__).resolve().parents[1] / "ui" / "index.html"
 
 
@@ -156,7 +156,7 @@ def get_platform_status(
     storage_health = customer_store.get_storage_health()
     return {
         "platform": "CSPR Copilot & Agentic Studio",
-        "version": "3.3.2",
+        "version": "3.3.3",
         "authenticated_user": user,
         "model_router": model_router.get_status(),
         "storage_health": storage_health,
