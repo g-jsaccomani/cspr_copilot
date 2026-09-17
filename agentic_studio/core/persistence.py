@@ -155,6 +155,15 @@ class CSPRWorkspaceStore:
                 """
             )
 
+    @staticmethod
+    def _safe_ts(val: Any) -> float:
+        if isinstance(val, (int, float)):
+            return float(val)
+        try:
+            return float(val)
+        except Exception:
+            return time.time()
+
     def _sync_from_firestore_on_startup(self) -> None:
         """Hydrates local SQLite cache from Cloud Firestore on container cold start."""
         fs = get_firestore_client()
@@ -172,11 +181,11 @@ class CSPRWorkspaceStore:
                         """,
                         (
                             d.get("customer_id", doc.id),
-                            d.get("customer_name", doc.id),
-                            d.get("gcp_org_id", ""),
+                            d.get("customer_name") or d.get("name") or doc.id,
+                            d.get("gcp_org_id") or d.get("org_id") or "",
                             json.dumps(d.get("gcp_project_ids", [])),
                             d.get("created_by", ""),
-                            float(d.get("created_at", time.time())),
+                            self._safe_ts(d.get("created_at")),
                         ),
                     )
                 # 2. Hydrate Conversations
@@ -194,8 +203,8 @@ class CSPRWorkspaceStore:
                             d.get("mode", "conversa"),
                             d.get("model_id", "gemini-3.8-flash"),
                             d.get("created_by", ""),
-                            float(d.get("created_at", time.time())),
-                            float(d.get("updated_at", time.time())),
+                            self._safe_ts(d.get("created_at")),
+                            self._safe_ts(d.get("updated_at")),
                         ),
                     )
                 # 3. Hydrate Messages

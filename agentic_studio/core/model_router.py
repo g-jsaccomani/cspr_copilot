@@ -161,8 +161,19 @@ class ModelRouter:
                 candidate_models.append(m)
 
         last_error: Optional[str] = None
+        vertex_alias_map = {
+            "gemini-3.8-flash": "gemini-2.5-flash",
+            "gemini-3.7-flash": "gemini-2.5-flash",
+            "gemini-3.5-flash": "gemini-2.5-flash",
+            "gemini-3.1-pro-preview": "gemini-2.5-pro",
+        }
         if self._client is not None and not self._is_offline_forced():
+            tried_vertex_targets = set()
             for model_id in candidate_models:
+                vertex_target = vertex_alias_map.get(model_id, model_id)
+                if vertex_target in tried_vertex_targets:
+                    continue
+                tried_vertex_targets.add(vertex_target)
                 try:
                     from google.genai import types
                     config = types.GenerateContentConfig(
@@ -170,7 +181,7 @@ class ModelRouter:
                         system_instruction=system_instruction,
                     )
                     response = self._client.models.generate_content(
-                        model=model_id,
+                        model=vertex_target,
                         contents=prompt,
                         config=config,
                     )
@@ -186,8 +197,8 @@ class ModelRouter:
                         "status": "ok",
                     }
                 except Exception as exc:
-                    last_error = f"{model_id}: {exc}"
-                    logger.warning("Model %s failed (%s), trying next in fallback chain...", model_id, exc)
+                    last_error = f"{model_id} ({vertex_target}): {exc}"
+                    logger.warning("Model %s (%s) failed (%s), trying next in fallback chain...", model_id, vertex_target, exc)
 
         # Deterministic CSPR domain fallback if offline or ADC expired
         diag_text = self._offline_cspr_diagnostic(

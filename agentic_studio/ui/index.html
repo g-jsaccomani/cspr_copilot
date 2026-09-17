@@ -58,7 +58,7 @@
     }
   </style>
 </head>
-<body class="h-screen w-screen flex select-none">
+<body class="h-screen w-screen flex">
 
   <!-- Modal: Create New Isolated Customer -->
   <div id="newCustomerModal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm">
@@ -241,9 +241,9 @@
   </aside>
 
   <!-- ==================== MAIN CENTER CANVAS ==================== -->
-  <main class="flex-1 h-full gcp-canvas-glow flex flex-col justify-between relative overflow-hidden">
+  <main class="flex-1 h-full min-h-0 gcp-canvas-glow flex flex-col justify-between relative overflow-hidden">
     <!-- Top Subtle Context Bar -->
-    <div class="w-full px-8 py-4 flex items-center justify-between z-10">
+    <div class="w-full px-8 py-4 flex items-center justify-between z-10 shrink-0">
       <div class="flex items-center gap-2.5">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         <span id="activeCustomerTopBadge" class="text-xs font-medium text-slate-300">
@@ -278,9 +278,9 @@
     </div>
 
     <!-- Center Content Area (Switches between Welcome State, Chat Stream, or Tarefa CSPR Pipeline) -->
-    <div class="flex-1 overflow-y-auto custom-scroll px-6 md:px-16 flex flex-col justify-center items-center">
+    <div id="mainScrollViewport" class="flex-1 min-h-0 overflow-y-auto custom-scroll px-6 md:px-16 flex flex-col items-center">
       <!-- Greeting Hero (Visible when conversation has no user turns yet & in Conversa mode) -->
-      <div id="welcomeHero" class="text-center max-w-2xl space-y-3 my-auto">
+      <div id="welcomeHero" class="text-center max-w-2xl space-y-3 my-auto py-8">
         <h1 id="greetingHeadline" class="text-3xl md:text-4xl font-semibold tracking-tight text-white">
           Olá! No que você está pensando?
         </h1>
@@ -306,10 +306,10 @@
       </div>
 
       <!-- Active Chat Messages Stream (Visible when conversation has messages in Conversa mode) -->
-      <div id="chatStreamContainer" class="hidden w-full max-w-3xl space-y-5 py-6 my-auto"></div>
+      <div id="chatStreamContainer" class="hidden w-full max-w-3xl space-y-5 py-6 select-text"></div>
 
       <!-- Tarefa Mode: 6-Stage CSPR Pipeline Inspector & Upstream Sync -->
-      <div id="taskPipelineContainer" class="hidden w-full max-w-4xl space-y-4 py-6 my-auto">
+      <div id="taskPipelineContainer" class="hidden w-full max-w-4xl space-y-4 py-6">
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-lg font-semibold text-white">Pipeline CSPR (6 Fases de Execução Técnica)</h2>
@@ -758,9 +758,10 @@
       document.getElementById('promptInput').focus();
     }
 
-    function renderActiveConversationStream() {
+    function renderActiveConversationStream(scrollToBottom = false) {
       const hero = document.getElementById('welcomeHero');
       const stream = document.getElementById('chatStreamContainer');
+      const viewport = document.getElementById('mainScrollViewport');
       const conv = conversations.find(x => x.conversation_id === activeConversationId);
 
       if (currentMode !== 'conversa') {
@@ -788,11 +789,19 @@
               <div class="text-[10px] font-mono text-slate-400 mb-1">
                 ${isUser ? 'Você (@google.com)' : `CSPR Copilot • ${m.model_used || 'Gemini 3.x'}`}
               </div>
-              <div class="whitespace-pre-wrap">${m.content}</div>
+              <div class="whitespace-pre-wrap break-words">${m.content}</div>
             </div>
           </div>
         `;
       }).join('');
+
+      if ( viewport ) {
+        if (scrollToBottom) {
+          viewport.scrollTop = viewport.scrollHeight;
+        } else {
+          viewport.scrollTop = 0;
+        }
+      }
     }
 
     function renderPhasesGrid() {
@@ -863,7 +872,7 @@
       });
       const data = await res.json();
       document.getElementById('sidebarModelBadge').innerText = data.active_model.replace('gemini-', '');
-      saveUserPreferences({ active_model: modelId });
+      saveUserPreferences({ preferred_model: modelId });
     }
 
     function prefillAndSend(text) {
@@ -871,35 +880,75 @@
       sendPrompt();
     }
 
+    let isSendingPrompt = false;
+
     async function sendPrompt() {
+      if (isSendingPrompt) return;
       const input = document.getElementById('promptInput');
       const msg = input.value.trim();
       if (!msg || !activeCustomerId) return;
+      isSendingPrompt = true;
       input.value = '';
+      input.disabled = true;
       setMode('conversa');
 
-      const res = await fetch('/api/v1/copilot/chat', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          message: msg,
-          customer_id: activeCustomerId,
-          conversation_id: activeConversationId,
-          preferred_model: document.getElementById('modelSelect').value
-        })
-      });
-      const data = await res.json();
-      if (data.conversation) {
-        activeConversationId = data.conversation.conversation_id;
-        const idx = conversations.findIndex(x => x.conversation_id === activeConversationId);
-        if (idx >= 0) {
-          conversations[idx] = data.conversation;
-        } else {
-          conversations.unshift(data.conversation);
+      // Show optimistic user message + animated thinking indicator immediately
+      const hero = document.getElementById('welcomeHero');
+      const stream = document.getElementById('chatStreamContainer');
+      const viewport = document.getElementById('mainScrollViewport');
+      hero.classList.add('hidden');
+      stream.classList.remove('hidden');
+      stream.innerHTML += `
+        <div class="flex justify-end">
+          <div class="max-w-2xl rounded-2xl px-4 py-3 text-xs leading-relaxed bg-blue-600/25 border border-blue-500/30 text-white">
+            <div class="text-[10px] font-mono text-slate-400 mb-1">Você (@google.com)</div>
+            <div class="whitespace-pre-wrap break-words">${msg.replace(/</g, '&lt;')}</div>
+          </div>
+        </div>
+        <div id="pendingAiBubble" class="flex justify-start">
+          <div class="max-w-2xl rounded-2xl px-4 py-3 text-xs leading-relaxed bg-[#181b23]/95 border border-blue-500/30 text-blue-300 flex items-center gap-2.5">
+            <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+            <span>CSPR Copilot está analisando o contexto isolado do Customer...</span>
+          </div>
+        </div>
+      `;
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
+
+      try {
+        const res = await fetch('/api/v1/copilot/chat', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            message: msg,
+            customer_id: activeCustomerId,
+            conversation_id: activeConversationId,
+            preferred_model: document.getElementById('modelSelect').value
+          })
+        });
+        const data = await res.json();
+        if (data.conversation) {
+          activeConversationId = data.conversation.conversation_id;
+          const idx = conversations.findIndex(x => x.conversation_id === activeConversationId);
+          if (idx >= 0) {
+            conversations[idx] = data.conversation;
+          } else {
+            conversations.unshift(data.conversation);
+          }
+          saveUserPreferences({ active_customer_id: activeCustomerId, active_conversation_id: activeConversationId });
         }
+        renderConversationsList();
+        renderActiveConversationStream(true);
+      } catch (err) {
+        console.error('Erro no chat:', err);
+        const pending = document.getElementById('pendingAiBubble');
+        if (pending) {
+          pending.innerHTML = `<div class="max-w-2xl rounded-2xl px-4 py-3 text-xs bg-red-500/20 border border-red-500/40 text-red-300">Erro de comunicação com o servidor: ${err.message || err}</div>`;
+        }
+      } finally {
+        isSendingPrompt = false;
+        input.disabled = false;
+        input.focus();
       }
-      renderConversationsList();
-      renderActiveConversationStream();
     }
 
     function openCustomerModal() {
