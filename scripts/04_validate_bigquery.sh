@@ -46,7 +46,7 @@ if ! DATASETS=$(bq ls --project_id="${BQ_PROJECT_ID}" --format=prettyjson 2>"${B
     cat "${BQ_ERR}"
     rm -f "${BQ_ERR}"
     echo ""
-    echo -e "${CYAN}Tip:${NC} Make sure you are authenticated with the Nubank account (${BOLD}gcloud auth login${NC}) or run inside Cloud Shell."
+    echo -e "${CYAN}Tip:${NC} Make sure you are authenticated with the target Customer GCP account (${BOLD}gcloud auth login${NC}) or run inside Cloud Shell."
     exit 1
 fi
 rm -f "${BQ_ERR}"
@@ -59,7 +59,7 @@ check_dataset() {
     echo -n " • Checking dataset '${DATASET_NAME}' (${DESCRIPTION})... "
     if echo "${DATASETS}" | grep -q "\"${DATASET_NAME}\""; then
         local SUMMARY
-        SUMMARY=$(bq query --nouse_legacy_sql --format=csv --quiet \
+        SUMMARY=$(bq query --nouse_legacy_sql --project_id="${BQ_PROJECT_ID}" --format=csv --quiet \
             "SELECT COUNT(1), IFNULL(SUM(row_count),0), ROUND(IFNULL(SUM(size_bytes),0)/1073741824, 2) FROM \`${BQ_PROJECT_ID}.${DATASET_NAME}.__TABLES__\`" 2>/dev/null | tail -n 1 || true)
         local T_COUNT=$(echo "${SUMMARY}" | cut -d',' -f1)
         local R_COUNT=$(echo "${SUMMARY}" | cut -d',' -f2)
@@ -75,8 +75,8 @@ check_dataset() {
 }
 
 echo ""
-echo -e "${BOLD}--- Cloud Run Collector Job Status ---${NC}"
-gcloud run jobs executions list --job=cspr-prereq-job --region="${LOCATION:-us-east1}" --project="${BQ_PROJECT_ID}" --limit=5 2>/dev/null || echo "  (Could not list Cloud Run Job executions)"
+echo -e "${BOLD}--- Cloud Run Collector & Findings Jobs Status ---${NC}"
+gcloud run jobs executions list --region="${LOCATION:-us-east1}" --project="${BQ_PROJECT_ID}" --limit=6 2>/dev/null || echo "  (Could not list Cloud Run Job executions)"
 
 echo ""
 echo -e "${BOLD}--- BigQuery Datasets Verification (Exact Counts) ---${NC}"
@@ -95,7 +95,7 @@ check_table_rows() {
     local QUERY="SELECT count(1) FROM \`${BQ_PROJECT_ID}.${DATASET}.${TABLE}\`"
     
     local COUNT
-    COUNT=$(bq query --nouse_legacy_sql --format=csv --quiet "${QUERY}" 2>/dev/null | tail -n 1 || true)
+    COUNT=$(bq query --nouse_legacy_sql --project_id="${BQ_PROJECT_ID}" --format=csv --quiet "${QUERY}" 2>/dev/null | tail -n 1 || true)
     if [[ -n "${COUNT}" && "${COUNT}" =~ ^[0-9]+$ ]]; then
         echo -e " • ${DATASET}.${TABLE}: ${GREEN}${COUNT} rows${NC}"
     else
@@ -112,6 +112,7 @@ check_table_rows "cspr_policy" "policyanalyzer_orgpolicy_analysis"
 check_table_rows "cspr_policy" "policyanalyzer_UnusedServiceAccountKey"
 check_table_rows "cspr_rec" "recommendations_export"
 check_table_rows "cspr_rec" "insights_export"
+check_table_rows "cspr_finding" "cspr_finding"
 
 echo ""
 echo -e "${BOLD}--- Complete BigQuery Table & Row Audit (INFORMATION_SCHEMA) ---${NC}"

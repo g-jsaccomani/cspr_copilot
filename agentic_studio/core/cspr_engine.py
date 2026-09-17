@@ -84,8 +84,9 @@ class CSPREngine:
     def __init__(self, repo_root: Optional[Path] = None, upstream_repo_root: Optional[Path] = None) -> None:
         self.repo_root: Path = repo_root or Path(__file__).resolve().parents[2]
         self.scripts_dir: Path = self.repo_root / "scripts"
-        self.upstream_repo_root: Path = upstream_repo_root or Path(
-            os.getenv("UPSTREAM_CSPR_PATH", "/Users/jsaccomani/Documents/Jetsky/Google/CSPR")
+        env_upstream = os.getenv("UPSTREAM_CSPR_PATH", "").strip()
+        self.upstream_repo_root: Path = upstream_repo_root or (
+            Path(env_upstream) if env_upstream else (self.repo_root / "_embedded_agnostic_scripts")
         )
         self.upstream_scripts_dir: Path = self.upstream_repo_root / "scripts"
 

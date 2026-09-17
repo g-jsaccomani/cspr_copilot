@@ -227,7 +227,7 @@ class ModelRouter:
         if "billing" in p_lower or "ureq_project_billing_not_found" in p_lower:
             return (
                 "### Diagnóstico CSPR_copilot — Faturamento / Billing (`UREQ_PROJECT_BILLING_NOT_FOUND`)\n"
-                "- **Causa Raiz:** O projeto dedicado do CSPR (ex: `nu-cspr-assessment`) foi criado sem conta de faturamento vinculada, bloqueando a ativação das 7 APIs obrigatórias (`cloudasset`, `bigquery`, `run`, `artifactregistry`, `policyanalyzer`, `recommender`, `serviceusage`).\n"
+                "- **Causa Raiz:** O projeto dedicado do CSPR (ex: `gcp-cspr-assessment`) foi criado sem conta de faturamento vinculada, bloqueando a ativação das 7 APIs obrigatórias (`cloudasset`, `bigquery`, `run`, `artifactregistry`, `policyanalyzer`, `recommender`, `serviceusage`).\n"
                 "- **Comandos de Remediação Imediata:**\n"
                 "```bash\n"
                 "# 1. Listar contas de faturamento ativas\n"
@@ -241,12 +241,36 @@ class ModelRouter:
                 "```"
                 f"{citation_suffix}"
             )
-        if "terraform" in p_lower or "pulumi" in p_lower or "nubank" in p_lower or "iac" in p_lower:
+        if "questionário" in p_lower or "questionario" in p_lower or "questionnaire" in p_lower:
+            return (
+                "### CSPR_copilot — Preenchimento Assistido do Questionário Técnico CSPR\n"
+                "Abaixo estão as respostas técnicas estruturadas para preenchimento direto do **CSPR Technical Discovery & Controls Questionnaire**:\n\n"
+                "| Domínio CSPR | Tópico do Questionário | Status Sugerido | Resposta Técnica Recomendada | Evidência (`BigQuery` / `gcloud`) |\n"
+                "| :--- | :--- | :--- | :--- | :--- |\n"
+                "| **1. IAM & Identity** | Governança de Super Admins e contas privilegiadas (`roles/owner`, `roles/editor`) | `PARTIALLY_COMPLIANT` | Contas Super Admin devem ser dedicadas (sem uso diário), protegidas por MFA phishing-resistant (Titan/FIDO2) e substituídas por grupos auditados + Privileged Access Manager (PAM) com aprovação JIT. | `SELECT member, role FROM cspr_cai.iam_policy WHERE role IN ('roles/owner','roles/editor')` |\n"
+                "| **2. Org Policies** | Restrição de domínios permitidos e chaves de Service Account | `NON_COMPLIANT` | Habilitar `constraints/iam.allowedPolicyMemberDomains` e `constraints/iam.disableServiceAccountKeyCreation` no nó Organizacional para eliminar risco de exfiltração de chaves estáticas. | `SELECT constraint, enforced FROM cspr_policy.org_policies` |\n"
+                "| **3. Network & VPC-SC** | Perímetro de proteção contra exfiltração de dados sensíveis | `PARTIALLY_COMPLIANT` | Implementar VPC Service Controls (VPC-SC) em modo Dry-Run seguido de Enforced para BigQuery, Cloud Storage e KMS nos projetos de produção. | `gcloud access-context-manager perimeters list` |\n"
+                "| **4. Data & KMS** | Gerenciamento de chaves CMEK e prevenção de exposição pública | `NON_COMPLIANT` | Forçar `constraints/storage.publicAccessPrevention` e adotar CMEK com rotação automática de 90 dias para datasets críticos. | `SELECT * FROM cspr_finding.public_storage_buckets` |"
+                f"{citation_suffix}"
+            )
+        if "planilha" in p_lower or "finding" in p_lower or "fidings" in p_lower or "checklist" in p_lower:
+            return (
+                "### CSPR_copilot — Estruturação e Preenchimento da Planilha de Findings (`cspr_finding` / `cspr_ci`)\n"
+                "Linhas estruturadas prontas para preenchimento da **Planilha de Findings (CSPR Review Checklist)** e exportação CSV/DOCX/PDF:\n\n"
+                "| Row ID | Domínio | Pilar de Segurança | Controle / Tópico | Severidade | Status | Evidência (`cspr_finding` / `cspr_ci`) | Recomendação Prescritiva |\n"
+                "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n"
+                "| `CSPR-IAM-001` | Identity & Access | Least Privilege | Uso de Roles Primitivas (`Owner`/`Editor`) e Chaves de SA gerenciadas pelo usuário | **CRITICAL** | `NON_COMPLIANT` | `cspr_finding.iam_primitive_roles` / `cspr_policy.sa_keys` | Migrar para Predefined/Custom Roles orientadas ao menor privilégio e substituir chaves JSON por Workload Identity Federation. |\n"
+                "| `CSPR-ORG-002` | Resource Hierarchy | Preventive Guardrails | Ausência de Organization Policies críticas (`disableServiceAccountKeyCreation`, `publicAccessPrevention`) | **HIGH** | `NON_COMPLIANT` | `cspr_policy.org_policy_drift` | Aplicar baseline de Organization Policies de forma hierárquica a partir do Root Organization Node. |\n"
+                "| `CSPR-NET-003` | Network Security | Zero Trust & Data Perimeter | Projetos produtivos fora de perímetro VPC Service Controls (VPC-SC) e sub-redes com Default Internet Egress | **HIGH** | `NON_COMPLIANT` | `cspr_cai.network_resources` | Configurar perímetros VPC-SC, Cloud NAT restrito e Private Google Access habilitado em todas as subnets. |\n"
+                "| `CSPR-DET-004` | Detective Controls | Visibility & Threat Detection | Data Access Audit Logs desabilitados para serviços críticos (IAM, BigQuery, GCS) | **MEDIUM** | `PARTIALLY_COMPLIANT` | `cspr_ci.audit_logging_coverage` | Habilitar `ADMIN_READ`, `DATA_READ` e `DATA_WRITE` para serviços core e centralizar em Log Sink organizacional imutável. |"
+                f"{citation_suffix}"
+            )
+        if "terraform" in p_lower or "pulumi" in p_lower or "iac" in p_lower:
             return (
                 "### Diagnóstico CSPR_copilot — Governança IaC Corporativa (Terraform / Pulumi Bypass)\n"
-                "- **Contexto:** Em clientes com pipeline estrita de IaC (ex: Nubank), a criação direta de folders (`google-cspr-nubank`) e projetos (`nu-cspr-assessment`) via `gcloud` no `setup_cspr_prereqs.sh` deve ser **pulada**.\n"
+                "- **Contexto:** Em organizações com pipeline estrita de IaC, a criação direta de folders (`google-cspr-assessment`) e projetos (`gcp-cspr-assessment`) via `gcloud` no `setup_cspr_prereqs.sh` pode ser **pulada**.\n"
                 "- **Workflow Recomendado:**\n"
-                "  1. Injete `SKIP_PROJECT_CREATION=true`, `BQ_PROJECT_ID=\"nu-cspr-assessment\"`, `LOCATION=\"us-east1\"`.\n"
+                "  1. Injete `SKIP_PROJECT_CREATION=true`, `BQ_PROJECT_ID=\"<CSPR_PROJECT_ID>\"`, `LOCATION=\"us-east1\"`.\n"
                 "  2. Provisione via Terraform/Pulumi os 5 datasets BigQuery organizacionais: `cspr_cai`, `cspr_policy`, `cspr_rec`, `cspr_finding` e `cspr_ci`.\n"
                 "  3. Crie a Service Account `cspr-prereq-cloudrun-sa` com bindings IAM no nível da Organização (`roles/cloudasset.viewer`, `roles/policyanalyzer.activityAnalysisViewer`, `roles/recommender.viewer`, `roles/bigquery.dataEditor`)."
                 f"{citation_suffix}"
@@ -292,9 +316,12 @@ class ModelRouter:
                 f"{citation_suffix}"
             )
         return (
-            "### CSPR_copilot — Senior GCP Security Architect & Lead CSPR Assessor\n"
-            "- **Domínio Completo:** 7 APIs CSPR (`cloudasset`, `bigquery`, `run`, `artifactregistry`, `policyanalyzer`, `recommender`, `serviceusage`), Artifact Registry (`customer-cspr-toolkit`), Cloud Run Job (`cspr-prereq-job`), SA (`cspr-prereq-cloudrun-sa`), e os 5 Datasets BigQuery (`cspr_cai`, `cspr_policy`, `cspr_rec`, `cspr_finding`, `cspr_ci`).\n"
-            "- **Pronto para Ação:** Cole um log de erro (`UREQ_PROJECT_BILLING_NOT_FOUND`, IAM, Docker, Cloud Run Job) ou solicite a customização de scripts/Terraform para o Customer ativo."
+            "### CSPR_copilot — Copiloto Agêntico para Questionários CSPR, Planilha de Findings, Insights & Relatórios\n"
+            "- **100% Agnóstico de Cliente:** Cada workspace mantém sua própria Biblioteca Isolada, Questionários, Planilha de Findings e Relatórios (`PDF`, `DOCX`, `CSV`).\n"
+            "- **Como posso ajudar agora:**\n"
+            "  1. **Preenchimento de Questionários CSPR:** Envie a pergunta ou o domínio (`IAM`, `Org Policies`, `VPC-SC`, `GKE`, `KMS`, `Logging/SCC`) para gerar a resposta técnica e a evidência.\n"
+            "  2. **Planilha de Findings (`cspr_finding` / `cspr_ci`):** Peça a tabela consolidada de achados com `Row ID`, `Severidade`, `Evidência` e `Recomendação`.\n"
+            "  3. **Insights & Relatórios Executivos:** Gere matrizes de risco 30/60/90 dias ou exporte diretamente pelos botões **PDF / DOCX / CSV** no topo."
             f"{citation_suffix}"
         )
 

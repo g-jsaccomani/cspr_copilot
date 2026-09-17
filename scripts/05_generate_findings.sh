@@ -29,14 +29,14 @@ if [[ -z "${BQ_PROJECT_ID:-}" ]]; then
     if [[ -n "${SUMMARY_FILE}" ]]; then
         DEFAULT_PROJECT=$(grep "GCP Project ID:" "${SUMMARY_FILE}" | awk '{print $NF}' || true)
     fi
-    DEFAULT_PROJECT="${DEFAULT_PROJECT:-nu-cspr-assessment}"
+    DEFAULT_PROJECT="${DEFAULT_PROJECT:-gcp-cspr-assessment}"
     read -r -p "Customer GCP Project ID [default: ${DEFAULT_PROJECT}]: " INPUT_PROJECT
     BQ_PROJECT_ID="${INPUT_PROJECT:-${DEFAULT_PROJECT}}"
 fi
 
 LOCATION="${LOCATION:-us-east1}"
-ORGANIZATION_ID="${ORGANIZATION_ID:-802070535070}"
-ORG_DOMAIN="${ORG_DOMAIN:-nubank.com.br}"
+ORGANIZATION_ID="${ORGANIZATION_ID:-000000000000}"
+ORG_DOMAIN="${ORG_DOMAIN:-customer.example.com}"
 
 PSO_FINDINGS_IMAGE="us-docker.pkg.dev/cloud-pso-security/cspr-toolkit/cspr-toolkit-findings:latest"
 CUSTOMER_FINDINGS_IMAGE="${LOCATION}-docker.pkg.dev/${BQ_PROJECT_ID}/customer-cspr-toolkit/cspr-toolkit-findings:latest"
@@ -232,23 +232,9 @@ with open(os.path.join(raw_dir, 'AutoFinding_row_ids.txt'), 'w', encoding='utf-8
 print(f'   -> Generated {len(row_ids)} individual <row_id>.json files + AutoFinding_row_ids.txt ({non_empty} checks with active findings)')
 "
 
-# Mirror to Findings_raw_Nubank if project is nu-cspr-assessment
-if [[ "${BQ_PROJECT_ID}" == "nu-cspr-assessment" ]]; then
-    mkdir -p "${BASE_DIR}/local_tests/Findings_raw_Nubank"
-    cp -R "${RAW_DIR}/"* "${BASE_DIR}/local_tests/Findings_raw_Nubank/" 2>/dev/null || true
-fi
-
 # Package everything into a single ZIP for easy Cloud Shell download
 EXPORT_ZIP="${BASE_DIR}/local_tests/cspr_findings_bundle_${BQ_PROJECT_ID}.zip"
 (cd "${BASE_DIR}/local_tests" && zip -q -r "cspr_findings_bundle_${BQ_PROJECT_ID}.zip" "cspr_findings_${BQ_PROJECT_ID}.json" "cspr_findings_${BQ_PROJECT_ID}.csv" "Findings_raw_${BQ_PROJECT_ID}") || true
-
-# ------------------------------------------------------------------------------
-# [5/5] Consolidate into Deliverables (Excel Review Checklist, Word Questionnaires & Decks)
-# ------------------------------------------------------------------------------
-if [[ -f "${BASE_DIR}/scripts/06_build_nubank_drive_workspace.py" ]]; then
-    echo -e "${CYAN}[5/5] Building consolidated Review Checklist (.xlsx), Domain Questionnaires (.docx) & Executive Decks...${NC}"
-    python3 "${BASE_DIR}/scripts/06_build_nubank_drive_workspace.py" || echo -e "${YELLOW}[i] Skipping local Office doc build (run 06_build_nubank_drive_workspace.py on Mac after downloading JSON bundle).${NC}"
-fi
 
 echo ""
 echo -e "${GREEN}${BOLD}==============================================================================${NC}"

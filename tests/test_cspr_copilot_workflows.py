@@ -71,16 +71,16 @@ def test_03_create_customer_workspace(client: TestClient) -> None:
     resp = client.post(
         "/api/v1/customers",
         json={
-            "name": "Nubank Financial Posture",
-            "gcp_project_id": "nu-cspr-assessment-01",
+            "name": "Enterprise Cloud Posture #01",
+            "gcp_project_id": "gcp-cspr-assessment-01",
             "org_id": "112233445566",
-            "description": "Revisão CSPR dedicada Nubank.",
+            "description": "Revisão CSPR dedicada agnóstica.",
         },
     )
     assert resp.status_code == 200
     cust = resp.json()
-    assert cust["name"] == "Nubank Financial Posture"
-    assert cust["gcp_project_id"] == "nu-cspr-assessment-01"
+    assert cust["name"] == "Enterprise Cloud Posture #01"
+    assert cust["gcp_project_id"] == "gcp-cspr-assessment-01"
     assert cust["org_id"] == "112233445566"
     assert cust["library"] == []
 
@@ -587,8 +587,8 @@ def test_32_auth_session_hydration_shares_the_same_singleton_as_api_endpoints(
     new_cust = client.post(
         "/api/v1/customers",
         json={
-            "name": "Itaú Unibanco CSPR",
-            "gcp_project_id": "itau-cspr-prod-01",
+            "name": "Enterprise Security Workspace #02",
+            "gcp_project_id": "gcp-cspr-prod-01",
             "org_id": "554433221100",
         },
     ).json()

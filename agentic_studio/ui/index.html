@@ -288,19 +288,23 @@
           Customer Ativo: <strong class="text-blue-400" id="heroCustName">—</strong> • Todos os scripts, logs e análises ficam isolados neste workspace.
         </p>
 
-        <!-- Quick Diagnostic Chips -->
+        <!-- Quick Action Chips: Questionnaires, Findings Spreadsheet, Insights & Diagnostics -->
         <div class="flex flex-wrap justify-center gap-2 pt-4">
-          <button onclick="prefillAndSend('Diagnóstico Fase 01: constraints/iam.allowedPolicyMemberDomains bloqueando atribuição da Service Account do CSPR')"
-            class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
-            ⚡ Org Policy IAM Domain
+          <button onclick="prefillAndSend('Ajude a preencher o Questionário Técnico CSPR nos domínios de IAM, Organization Policies, VPC-SC e Data Protection com status e evidências')"
+            class="px-3.5 py-2 rounded-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-xs text-blue-200 transition font-medium">
+            📋 Preencher Questionário CSPR
           </button>
-          <button onclick="prefillAndSend('Diagnóstico Fase 03: Cloud Run Job terminou com Exit Code 137 (OOM) durante processamento de recursos')"
-            class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
-            ⚡ Cloud Run Job OOM (Exit 137)
+          <button onclick="prefillAndSend('Gere a tabela estruturada para preenchimento da Planilha de Findings (cspr_finding / cspr_ci) com Row ID, Domínio, Severidade, Evidência e Recomendação')"
+            class="px-3.5 py-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-200 transition font-medium">
+            📊 Planilha de Findings (Checklist)
           </button>
-          <button onclick="prefillAndSend('Fase 04: Como auditar contagem exata de linhas e GB via __TABLES__ no BigQuery após o CSPR?')"
+          <button onclick="prefillAndSend('Gere os Insights Executivos e Matriz de Riscos priorizada (30/60/90 dias) para o Relatório Executivo deste Customer')"
+            class="px-3.5 py-2 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs text-amber-200 transition font-medium">
+            💡 Insights & Relatório Executivo
+          </button>
+          <button onclick="prefillAndSend('Fase 04/05: Como auditar contagem exata de linhas e extrair findings dos 5 datasets BigQuery (cspr_cai, cspr_policy, cspr_rec, cspr_finding, cspr_ci)?')"
             class="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition">
-            ⚡ Auditoria __TABLES__ BigQuery
+            ⚡ Auditoria BigQuery & Scanner
           </button>
         </div>
       </div>
