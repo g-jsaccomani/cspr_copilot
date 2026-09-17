@@ -66,9 +66,10 @@ show_menu() {
     echo -e "  ${CYAN}6)${NC} ${BOLD}[Pipeline Completo]${NC}    Executar Fases 02 -> 04 Sequencialmente"
     echo -e "  ${CYAN}7)${NC} Configurar / Alternar Projeto Alvo"
     echo -e "  ${CYAN}8)${NC} Visualizar Relatório de Resumo de Setup do Cliente"
+    echo -e "  ${CYAN}9)${NC} ${BOLD}[Status / Monitor]${NC}     Verificar Status do Findings (Cloud Run Jobs, Logs & BigQuery)"
     echo -e "  ${RED}0)${NC} Sair"
     echo ""
-    read -r -p "Escolha uma opção [0-8]: " OPTION
+    read -r -p "Escolha uma opção [0-9]: " OPTION
 }
 
 configure_project() {
@@ -123,6 +124,10 @@ while true; do
             else
                 echo -e "${YELLOW}Nenhum relatório cspr_environment_summary encontrado.${NC}"
             fi
+            read -r -p "Pressione [Enter] para voltar ao menu..."
+            ;;
+        9)
+            bash "${SCRIPT_DIR}/scripts/06_check_findings_status.sh"
             read -r -p "Pressione [Enter] para voltar ao menu..."
             ;;
         0)
