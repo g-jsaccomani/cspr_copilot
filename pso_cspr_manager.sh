@@ -33,7 +33,7 @@ ACTIVE_GCLOUD_PROJ=$(gcloud config get-value project 2>/dev/null || true)
 if [[ -n "${ACTIVE_GCLOUD_PROJ}" && "${ACTIVE_GCLOUD_PROJ}" != "(unset)" ]]; then
     DEFAULT_PROJECT="${DEFAULT_PROJECT:-${ACTIVE_GCLOUD_PROJ}}"
 fi
-DEFAULT_PROJECT="${DEFAULT_PROJECT:-target-gcp-project}"
+DEFAULT_PROJECT="${DEFAULT_PROJECT:-nu-cspr-assessment}"
 DEFAULT_ORG="${DEFAULT_ORG:-802070535070}"
 
 export BQ_PROJECT_ID="${BQ_PROJECT_ID:-${DEFAULT_PROJECT}}"
@@ -60,16 +60,18 @@ show_menu() {
     echo ""
     echo -e "  ${CYAN}1)${NC} ${BOLD}[Fase 01 - Setup]${NC}      Executar Script de Setup de Pré-requisitos (Cliente / Local)"
     echo -e "  ${CYAN}2)${NC} ${BOLD}[Fase 02 - Push]${NC}       Push da Imagem Scanner para Artifact Registry do Cliente"
-    echo -e "  ${CYAN}3)${NC} ${BOLD}[Fase 03 - Deploy]${NC}     Deploy e Execução do Cloud Run Job (Coleta de Telemetria)"
+    echo -e "  ${CYAN}3)${NC} ${BOLD}[Fase 03 - Deploy]${NC}     Deploy e Execução do Cloud Run Job (--async / Background)"
     echo -e "  ${CYAN}4)${NC} ${BOLD}[Fase 04 - Validação]${NC}  Validar Datasets e Tabelas no BigQuery (CAI, Policy, Rec)"
-    echo -e "  ${CYAN}5)${NC} ${BOLD}[Fase 05 - Findings]${NC}   Executar Findings Scanner e Exportar para Checklist/Looker"
+    echo -e "  ${CYAN}5)${NC} ${BOLD}[Fase 05 - Findings]${NC}   Disparar Findings Scanner (--async, 4h timeout) + Exportar Atuais"
     echo -e "  ${CYAN}6)${NC} ${BOLD}[Pipeline Completo]${NC}    Executar Fases 02 -> 04 Sequencialmente"
     echo -e "  ${CYAN}7)${NC} Configurar / Alternar Projeto Alvo"
     echo -e "  ${CYAN}8)${NC} Visualizar Relatório de Resumo de Setup do Cliente"
     echo -e "  ${CYAN}9)${NC} ${BOLD}[Status / Monitor]${NC}     Verificar Status do Findings (Cloud Run Jobs, Logs & BigQuery)"
+    echo -e "  ${CYAN}10)${NC} ${BOLD}[Exportar Agora]${NC}      Extrair Relatórios/CSVs/ZIP dos Findings já no BigQuery"
+    echo -e "  ${GREEN}11)${NC} ${BOLD}[Google Drive Nativo]${NC} Popular Planilha .gsheet (API <2s) & Clonar Templates Nativos (.gdoc/.gsheet/.gslides)"
     echo -e "  ${RED}0)${NC} Sair"
     echo ""
-    read -r -p "Escolha uma opção [0-9]: " OPTION
+    read -r -p "Escolha uma opção [0-11]: " OPTION
 }
 
 configure_project() {
@@ -127,7 +129,18 @@ while true; do
             read -r -p "Pressione [Enter] para voltar ao menu..."
             ;;
         9)
-            bash "${SCRIPT_DIR}/scripts/06_check_findings_status.sh"
+            bash "${SCRIPT_DIR}/scripts/07_check_findings_status.sh"
+            read -r -p "Pressione [Enter] para voltar ao menu..."
+            ;;
+        10)
+            bash "${SCRIPT_DIR}/scripts/08_export_existing_findings.sh"
+            read -r -p "Pressione [Enter] para voltar ao menu..."
+            ;;
+        11)
+            echo ""
+            read -r -p "ID da Planilha Google Sheets [default: 1r7-DA8FZtJ1TDzDLAA_7TiQnXxlj7GxiZIyUeUi8iYc]: " SHEET_ID_IN
+            SHEET_ID_IN="${SHEET_ID_IN:-1r7-DA8FZtJ1TDzDLAA_7TiQnXxlj7GxiZIyUeUi8iYc}"
+            python3 "${SCRIPT_DIR}/scripts/09_populate_native_google_workspace.py" "${SHEET_ID_IN}"
             read -r -p "Pressione [Enter] para voltar ao menu..."
             ;;
         0)

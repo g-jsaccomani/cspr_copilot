@@ -68,3 +68,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+local_tests/
